@@ -1,5 +1,6 @@
 import QtQuick
 import org.kde.plasma.plasmoid
+import org.kde.plasma.plasma5support as P5S
 
 PlasmoidItem {
     id: root
@@ -9,6 +10,36 @@ PlasmoidItem {
         refreshSeconds: Plasmoid.configuration.refreshSeconds
     }
 
+    // ---- data probe via executable DataSource ----
+    // We cat the uevent file (contains almost everything) plus three optional
+    // Lenovo files; missing files become empty BATTINFO_* values which the
+    // parser treats as "not supported".
+    readonly property string _probeCmd:
+        "cat /sys/class/power_supply/BAT0/uevent 2>/dev/null; " +
+        "echo \"BATTINFO_CHARGE_START=$(cat /sys/class/power_supply/BAT0/charge_control_start_threshold 2>/dev/null)\"; " +
+        "echo \"BATTINFO_CHARGE_END=$(cat /sys/class/power_supply/BAT0/charge_control_end_threshold 2>/dev/null)\"; " +
+        "echo \"BATTINFO_CHARGE_BEHAVIOUR=$(cat /sys/class/power_supply/BAT0/charge_behaviour 2>/dev/null)\""
+
+    P5S.DataSource {
+        id: probe
+        engine: "executable"
+        connectedSources: []
+        onNewData: function(source, data) {
+            battery.applyRawOutput(data["stdout"] || "")
+            disconnectSource(source)
+        }
+    }
+
+    Timer {
+        id: probeTimer
+        interval: Plasmoid.configuration.refreshSeconds * 1000
+        running: true
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: probe.connectSource(root._probeCmd)
+    }
+
+    // ---- presentation ----
     toolTipMainText: battery.present
         ? "Battery — " + battery.capacityPct + "%"
         : "Battery — n/a"
