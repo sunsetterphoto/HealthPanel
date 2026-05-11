@@ -45,6 +45,23 @@ battinfo --raw        # rohes /sys-Dump (debug)
 battinfo --help
 ```
 
+## KDE Plasma Widget
+
+Zusätzlich zum CLI gibt's ein Plasma-6-Widget, das alle Werte auf den Desktop bringt:
+
+- **Vollkarte** auf dem Desktop (Health-Bar mit Farbe, Cycles, Designed/Full/Remaining, Live-Werte, Lenovo-Specials)
+- **Kompakt** im Panel (Icon · Charge% · Health%) mit Klick-Popup
+- Refresh-Intervall im Widget-Settings konfigurierbar (Default 5 s, 2–30 s)
+- Liest direkt `/sys/class/power_supply/BAT0` — kein Subprocess, kein Polling der CLI
+
+Wird automatisch von `install.sh` mitinstalliert (falls KDE Plasma 6 da ist). Nach der
+Installation: Rechtsklick auf den Desktop → **Widget hinzufügen** → „Battery Info" suchen
+und reinziehen.
+
+**Widget-Updates nach `git pull`:** `install.sh` erneut ausführen. `kpackagetool6 -u` ist
+ein atomic upgrade — falls das Widget bereits auf dem Desktop liegt, einmal entfernen und
+neu reinziehen reicht, kein plasmashell-Restart nötig.
+
 ## Installation
 
 ```bash
@@ -57,9 +74,10 @@ git clone <repo> ~/Schreibtisch/battinfo
 - legt stabile Symlinks in `~/.local/bin/` an (`battinfo`, `battinfo-snapshot`)
 - legt systemd-`--user`-Unit-Symlinks an (`battinfo-snapshot.{service,timer}`)
 - aktiviert den Timer (daily, persistent)
+- installiert (oder upgraded) das Plasma-Widget via `kpackagetool6` — übersprungen falls KDE nicht da
 
-**Updates:** `git pull` im Projektordner — keine weiteren Schritte nötig.
-Die Symlinks zeigen auf den Projektpfad, kein Versionsstand wird irgendwo gespeichert.
+**Updates:** `git pull` und ggf. `install.sh` neu — keine Versions-Pflege irgendwo.
+Die Symlinks zeigen auf den Projektpfad, das Widget wird atomisch geswappt.
 
 ## History
 

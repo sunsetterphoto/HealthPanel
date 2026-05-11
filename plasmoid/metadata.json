@@ -1,0 +1,18 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Samuel"
+            }
+        ],
+        "Category": "System Information",
+        "Description": "Detailed laptop battery info — health, cycles, designed/full/remaining capacity, Lenovo charge thresholds",
+        "Icon": "battery",
+        "Id": "org.kde.battinfo",
+        "License": "GPL-3.0",
+        "Name": "Battery Info",
+        "Version": "1.0.0"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}
