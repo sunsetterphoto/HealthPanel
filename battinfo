@@ -1,0 +1,221 @@
+#!/usr/bin/env bash
+# battinfo — detailed laptop battery info from /sys + upower
+set -euo pipefail
+
+BAT_DIR="/sys/class/power_supply/BAT0"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/battinfo"
+HISTORY_FILE="$STATE_DIR/history.tsv"
+
+# ---------- colors ----------
+if [[ -t 1 ]] && command -v tput >/dev/null 2>&1 && [[ $(tput colors 2>/dev/null || echo 0) -ge 8 ]]; then
+    C_RESET=$(tput sgr0)
+    C_BOLD=$(tput bold)
+    C_DIM=$(tput dim)
+    C_RED=$(tput setaf 1)
+    C_GREEN=$(tput setaf 2)
+    C_YELLOW=$(tput setaf 3)
+    C_BLUE=$(tput setaf 4)
+    C_CYAN=$(tput setaf 6)
+else
+    C_RESET=""; C_BOLD=""; C_DIM=""; C_RED=""; C_GREEN=""; C_YELLOW=""; C_BLUE=""; C_CYAN=""
+fi
+
+die() { printf '%s\n' "$*" >&2; exit 1; }
+
+[[ -d "$BAT_DIR" ]] || die "Kein Akku unter $BAT_DIR gefunden."
+
+# ---------- helpers ----------
+read_sys() {
+    # read_sys <file>  -> stdout content or empty
+    local f="$BAT_DIR/$1"
+    [[ -r "$f" ]] && cat "$f" 2>/dev/null || true
+}
+
+# microunit -> human (µWh -> Wh, µV -> V, µW -> W); 2 decimals
+to_unit() {
+    local raw="${1:-}" suffix="${2:-}"
+    [[ -z "$raw" || "$raw" == "0" ]] && { printf 'n/a'; return; }
+    awk -v v="$raw" -v s="$suffix" 'BEGIN{ printf "%.2f %s", v/1000000, s }'
+}
+
+# integer percent of a/b
+percent_of() {
+    local a="$1" b="$2"
+    [[ -z "$a" || -z "$b" || "$b" == "0" ]] && { printf 'n/a'; return; }
+    awk -v a="$a" -v b="$b" 'BEGIN{ printf "%.1f", (a/b)*100 }'
+}
+
+# bar of width 20 from percent (numeric)
+bar() {
+    local p="${1:-0}" width=20
+    [[ "$p" == "n/a" ]] && { printf '%*s' "$width" ""; return; }
+    local filled
+    filled=$(awk -v p="$p" -v w="$width" 'BEGIN{ f=int(p/100*w + 0.5); if(f>w)f=w; if(f<0)f=0; print f }')
+    local empty=$((width - filled))
+    printf '%s' "$(printf '█%.0s' $(seq 1 "$filled" 2>/dev/null))"
+    [[ $empty -gt 0 ]] && printf '%s' "$(printf '░%.0s' $(seq 1 "$empty" 2>/dev/null))"
+}
+
+# colorize health percent
+health_color() {
+    local p="${1:-0}"
+    [[ "$p" == "n/a" ]] && { printf '%s' "$C_DIM"; return; }
+    awk -v p="$p" -v g="$C_GREEN" -v y="$C_YELLOW" -v r="$C_RED" 'BEGIN{
+        if (p >= 90) printf "%s", g;
+        else if (p >= 75) printf "%s", y;
+        else printf "%s", r;
+    }'
+}
+
+# status -> icon + color
+status_fmt() {
+    case "$1" in
+        Charging)    printf '%sCharging%s ⚡'      "$C_GREEN"  "$C_RESET" ;;
+        Discharging) printf '%sDischarging%s ↓'    "$C_YELLOW" "$C_RESET" ;;
+        Full)        printf '%sFull%s ✓'           "$C_GREEN"  "$C_RESET" ;;
+        "Not charging") printf '%sNot charging%s ⏸' "$C_BLUE" "$C_RESET" ;;
+        *)           printf '%s' "${1:-unknown}" ;;
+    esac
+}
+
+# upower time-remaining (seconds) — parses upower output for the current state
+upower_time_remaining() {
+    local upath
+    upath=$(upower -e 2>/dev/null | grep -E 'BAT|battery_' | head -n1 || true)
+    [[ -z "$upath" ]] && { printf ''; return; }
+    upower -i "$upath" 2>/dev/null | awk '
+        /time to empty:|time to full:/ {
+            for (i=1;i<=NF;i++) {
+                if ($i ~ /^[0-9.,]+$/) { val=$i; unit=$(i+1); break }
+            }
+            gsub(",", ".", val)
+            if (unit ~ /hour/)        printf "%.0f", val*3600
+            else if (unit ~ /minute/) printf "%.0f", val*60
+            else if (unit ~ /second/) printf "%.0f", val
+            exit
+        }'
+}
+
+# seconds -> "Hh Mm"
+human_duration() {
+    local s="${1:-}"
+    [[ -z "$s" || "$s" == "0" ]] && { printf 'n/a'; return; }
+    awk -v s="$s" 'BEGIN{ h=int(s/3600); m=int((s%3600)/60); printf "%dh %02dm", h, m }'
+}
+
+# ---------- gather all values ----------
+gather() {
+    MANUF=$(read_sys manufacturer)
+    MODEL=$(read_sys model_name)
+    SERIAL=$(read_sys serial_number | sed 's/^ *//;s/ *$//')
+    TECH=$(read_sys technology)
+    STATUS=$(read_sys status)
+    PRESENT=$(read_sys present)
+    CYCLES=$(read_sys cycle_count)
+    CAP_PCT=$(read_sys capacity)
+    CAP_LVL=$(read_sys capacity_level)
+    E_FULL_DESIGN=$(read_sys energy_full_design)
+    E_FULL=$(read_sys energy_full)
+    E_NOW=$(read_sys energy_now)
+    V_MIN_DESIGN=$(read_sys voltage_min_design)
+    V_NOW=$(read_sys voltage_now)
+    P_NOW=$(read_sys power_now)
+    CHARGE_START=$(read_sys charge_control_start_threshold)
+    CHARGE_END=$(read_sys charge_control_end_threshold)
+    CHARGE_BEH=$(read_sys charge_behaviour | sed 's/.*\[\([^]]*\)\].*/\1/')
+
+    HEALTH=$(percent_of "$E_FULL" "$E_FULL_DESIGN")
+    TIME_REMAIN=$(upower_time_remaining)
+}
+
+# ---------- render ----------
+render() {
+    local title="Akku"
+    [[ -n "$MANUF" || -n "$MODEL" ]] && title="$MANUF $MODEL"
+
+    printf '\n  %s%s%s — BAT0\n' "$C_BOLD" "$title" "$C_RESET"
+    printf '  %s%s%s\n' "$C_DIM" "──────────────────────────────────────────────" "$C_RESET"
+
+    local hc; hc=$(health_color "$HEALTH")
+    printf '  %-14s %s%s%%%s  %s%s%s\n' \
+        "Health" "$hc" "$HEALTH" "$C_RESET" \
+        "$hc" "$(bar "$HEALTH")" "$C_RESET"
+    printf '  %-14s %s\n'    "Cycles"     "${CYCLES:-n/a}"
+    printf '  %-14s %s\n'    "Designed"   "$(to_unit "$E_FULL_DESIGN" Wh)"
+    printf '  %-14s %s\n'    "Full (now)" "$(to_unit "$E_FULL" Wh)"
+
+    local remain_pct="$CAP_PCT"
+    printf '  %-14s %s  (%s%%)\n' "Remaining" "$(to_unit "$E_NOW" Wh)" "${remain_pct:-n/a}"
+    printf '  %s%s%s\n' "$C_DIM" "──────────────────────────────────────────────" "$C_RESET"
+
+    printf '  %-14s %s' "Status" "$(status_fmt "${STATUS:-unknown}")"
+    if [[ "$STATUS" == "Charging" || "$STATUS" == "Discharging" ]] && [[ -n "$TIME_REMAIN" ]]; then
+        local label="left"
+        [[ "$STATUS" == "Charging" ]] && label="to full"
+        printf ' — %s %s' "$(human_duration "$TIME_REMAIN")" "$label"
+    fi
+    printf '\n'
+
+    printf '  %-14s %s\n' "Power draw" "$(to_unit "$P_NOW" W)"
+    printf '  %-14s %s  (design min %s)\n' "Voltage" "$(to_unit "$V_NOW" V)" "$(to_unit "$V_MIN_DESIGN" V)"
+    printf '  %-14s %s\n' "Technology" "${TECH:-n/a}"
+    printf '  %-14s %s\n' "Serial"     "${SERIAL:-n/a}"
+
+    if [[ -n "$CHARGE_START$CHARGE_END$CHARGE_BEH" ]]; then
+        printf '  %s%s%s\n' "$C_DIM" "── Lenovo ───────────────────────────────────" "$C_RESET"
+        [[ -n "$CHARGE_START" && -n "$CHARGE_END" ]] && \
+            printf '  %-14s %s%%–%s%%\n' "Charge limit" "$CHARGE_START" "$CHARGE_END"
+        [[ -n "$CHARGE_BEH" ]] && \
+            printf '  %-14s %s\n' "Charge mode" "$CHARGE_BEH"
+    fi
+    printf '\n'
+}
+
+# ---------- subcommands ----------
+cmd_show()    { gather; render; }
+cmd_raw()     { for f in "$BAT_DIR"/*; do [[ -f "$f" && -r "$f" ]] || continue; printf '%s=%s\n' "$(basename "$f")" "$(cat "$f" 2>/dev/null | tr '\n' ' ')"; done; }
+cmd_watch() {
+    trap 'tput cnorm 2>/dev/null || true; exit 0' INT TERM
+    tput civis 2>/dev/null || true
+    while true; do
+        clear
+        gather; render
+        printf '  %s(refresh 2s · Ctrl-C zum Beenden)%s\n' "$C_DIM" "$C_RESET"
+        sleep 2
+    done
+}
+cmd_history() {
+    if [[ ! -s "$HISTORY_FILE" ]]; then
+        printf '%sNoch keine History — Snapshots werden t\xc3\xa4glich vom systemd-Timer geschrieben.%s\n' "$C_DIM" "$C_RESET"
+        printf '%sManueller Snapshot:%s battinfo-snapshot\n' "$C_DIM" "$C_RESET"
+        return
+    fi
+    printf '\n  %sBattery History%s — %s\n\n' "$C_BOLD" "$C_RESET" "$HISTORY_FILE"
+    printf '  %-19s  %-7s  %-8s  %-8s  %s\n' "Date" "Health%" "FCC(Wh)" "Designed" "Cycles"
+    printf '  %s\n' "─────────────────────────────────────────────────────────────"
+    # skip header row
+    awk -F'\t' 'NR>1 { printf "  %-19s  %-7s  %-8s  %-8s  %s\n", $1, $2, $3, $4, $5 }' "$HISTORY_FILE"
+    printf '\n'
+}
+
+usage() {
+    cat <<EOF
+battinfo — detailed laptop battery info
+
+Usage:
+  battinfo              show current battery snapshot
+  battinfo -w|--watch   live view, refresh every 2s
+  battinfo --history    show logged history (from systemd timer)
+  battinfo --raw        dump all sysfs entries (debug)
+  battinfo -h|--help    this help
+EOF
+}
+
+case "${1:-}" in
+    ""|show)               cmd_show ;;
+    -w|--watch|watch)      cmd_watch ;;
+    --history|history)     cmd_history ;;
+    --raw|raw)             cmd_raw ;;
+    -h|--help|help)        usage ;;
+    *) usage; exit 2 ;;
+esac

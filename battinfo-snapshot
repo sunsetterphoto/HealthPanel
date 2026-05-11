@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# battinfo-snapshot — log a single battery health datapoint to TSV
+# Called by systemd --user timer (daily, Persistent=true).
+set -euo pipefail
+
+BAT_DIR="/sys/class/power_supply/BAT0"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/battinfo"
+HISTORY_FILE="$STATE_DIR/history.tsv"
+
+[[ -d "$BAT_DIR" ]] || { echo "no battery at $BAT_DIR" >&2; exit 1; }
+
+mkdir -p "$STATE_DIR"
+
+read_sys() { local f="$BAT_DIR/$1"; [[ -r "$f" ]] && cat "$f" 2>/dev/null || echo ""; }
+
+E_FULL_DESIGN=$(read_sys energy_full_design)
+E_FULL=$(read_sys energy_full)
+CYCLES=$(read_sys cycle_count)
+
+HEALTH=$(awk -v a="$E_FULL" -v b="$E_FULL_DESIGN" 'BEGIN{
+    if (b+0 == 0) { print "n/a" } else { printf "%.2f", (a/b)*100 }
+}')
+FCC_WH=$(awk -v v="$E_FULL" 'BEGIN{ if (v+0 == 0) { print "n/a" } else { printf "%.2f", v/1000000 } }')
+DESIGN_WH=$(awk -v v="$E_FULL_DESIGN" 'BEGIN{ if (v+0 == 0) { print "n/a" } else { printf "%.2f", v/1000000 } }')
+
+DATE=$(date '+%Y-%m-%d %H:%M:%S')
+
+# Write header if file fresh
+if [[ ! -s "$HISTORY_FILE" ]]; then
+    printf 'date\thealth_pct\tfcc_wh\tdesigned_wh\tcycles\n' > "$HISTORY_FILE"
+fi
+
+# Skip duplicate of today (idempotent if timer fires twice for any reason)
+TODAY=$(date '+%Y-%m-%d')
+if grep -q "^${TODAY} " "$HISTORY_FILE" 2>/dev/null; then
+    echo "snapshot for $TODAY already logged, skipping"
+    exit 0
+fi
+
+printf '%s\t%s\t%s\t%s\t%s\n' "$DATE" "$HEALTH" "$FCC_WH" "$DESIGN_WH" "${CYCLES:-n/a}" >> "$HISTORY_FILE"
+echo "logged: health=${HEALTH}% fcc=${FCC_WH}Wh cycles=${CYCLES}"
