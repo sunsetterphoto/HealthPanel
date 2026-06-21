@@ -1,120 +1,136 @@
-# battinfo
+# HealthPanel
 
-Schlankes CLI-Tool für detaillierte Akku-Informationen unter Linux.
-Reines Bash, keine Runtime-Abhängigkeiten außer Coreutils + `upower`.
+A KDE Plasma 6 widget that turns the battery applet into a compact **system
+health monitor**: a live left column (power profile, CPU, RAM, disk, network,
+temperatures, SSD SMART) beside a detailed battery card — in one tidy popup.
 
-```
-$ battinfo
-
-  SMP 5B11M90082 — BAT0
-  ──────────────────────────────────────────────
-  Health         87.0%  █████████████████░░░
-  Cycles         139
-  Designed       51.97 Wh
-  Full (now)     45.23 Wh
-  Remaining      40.36 Wh  (89%)
-  ──────────────────────────────────────────────
-  Status         Discharging ↓ — 5h 36m left
-  Power draw     7.41 W
-  Voltage        12.67 V  (design min 11.64 V)
-  Technology     Li-poly
-  Serial         496
-  ── Lenovo ───────────────────────────────────
-  Charge limit   75%–80%
-  Charge mode    auto
-```
-
-## Was es zeigt
-
-Alles, was `/sys/class/power_supply/BAT0/` und `upower` hergeben:
-
-- **Identität:** Manufacturer, Model, Serial, Technology
-- **Kapazität:** Designed capacity, current full charge capacity, remaining capacity
-- **Health:** `energy_full / energy_full_design × 100`, mit Farbe (>90% grün, 75–90% gelb, <75% rot)
-- **Verschleiß:** Ladezyklen (cycle_count)
-- **Live:** Status, Power draw, Voltage (current + design min), verbleibende Zeit
-- **Lenovo-Specials:** Charge-Thresholds (start/stop %), Charge-Behaviour
-
-## Subcommands
+> Built and tested on Wayland with Plasma 6 (Qt 6.11) on Fedora, but written to
+> work on any Linux laptop/desktop running Plasma 6.
 
 ```
-battinfo              # einmalige Anzeige
-battinfo -w           # Live-Watch (refresh 2s)
-battinfo --history    # gelogger Verlauf (täglich via systemd timer)
-battinfo --raw        # rohes /sys-Dump (debug)
-battinfo --help
+┌──────────────────────────────────────────────┐
+│ Power-Mode [Leistung|Ausgewogen|Sparen]  │ S │  SMP 5B11M90082         │
+│ ─────────────────────────────────────    │ e │  BAT0 · Li-poly        │
+│ CPU         ▮▮▯▯▮▯▯▮  23%   39°C           │ p │  Health         87.0%  │
+│ [████░░░░░░░░░░░░░░]                       │ a │  [███████████████░░]   │
+│ RAM                          57%          │ r │  Cycles           139  │
+│ 9.2 / 16 GB   [██████████░░░░]            │ a │  Designed    51.97 Wh  │
+│ Swap 0.4/8 GB [█░░░░░░░░░░░░]              │ t │  Remaining 40.4 (89%)  │
+│ DISK ↓8 ↑2 MB/s  34°C        43%          │ o │  Status   ↓ 5h 36m     │
+│ [█████████░░░░░░░]                         │ r │  Power draw    7.41 W  │
+│ 98% Health · 14.520 h · 47 TBW            │   │  Charge limit 75–80%   │
+│ NETZ   ↓ 2.4 MB/s   ↑ 0.3 MB/s            │   │                        │
+└──────────────────────────────────────────────┘
 ```
 
-## KDE Plasma Widget
+*(Replace this sketch with a real screenshot — drop a PNG into `screenshots/`
+and reference it here.)*
 
-Zusätzlich zum CLI gibt's ein Plasma-6-Widget, das alle Werte auf den Desktop bringt:
+## Features
 
-- **Vollkarte** auf dem Desktop (Health-Bar mit Farbe, Cycles, Designed/Full/Remaining, Live-Werte, Lenovo-Specials)
-- **Kompakt** im Panel (Icon · Charge% · Health%) mit Klick-Popup
-- Refresh-Intervall im Widget-Settings konfigurierbar (Default 5 s, 2–30 s)
-- Liest direkt `/sys/class/power_supply/BAT0` — kein Subprocess, kein Polling der CLI
+**System column (left)** — each section can be hidden, each metric has a
+selectable display style (bar · ring · sparkline):
 
-Wird automatisch von `install.sh` mitinstalliert (falls KDE Plasma 6 da ist). Nach der
-Installation: Rechtsklick auf den Desktop → **Widget hinzufügen** → „Battery Info" suchen
-und reinziehen.
+- **Power profile** — Leistung / Ausgewogen / Sparen, **click to switch live**
+  (via `power-profiles-daemon` or `tuned-ppd`; no root, no password prompt)
+- **CPU** — total load + per-physical-core mini-bars + temperature
+- **RAM + Swap** — usage in % and GB
+- **Disk** — root-filesystem usage, read/write throughput, temperature
+- **Network** — down/up throughput (text or sparkline)
+- **SSD SMART** — health, power-on hours, terabytes written (NVMe and SATA)
 
-**Widget-Updates nach `git pull`:** `install.sh` erneut ausführen. `kpackagetool6 -u` ist
-ein atomic upgrade — falls das Widget bereits auf dem Desktop liegt, einmal entfernen und
-neu reinziehen reicht, kein plasmashell-Restart nötig.
+**Battery column (right)** — sections individually toggleable:
 
-## Installation
+- Health (with colour-coded bar), cycle count, designed/full/remaining capacity,
+  live status + estimated time, power draw, voltage, serial
+- Lenovo/vendor charge thresholds when the kernel exposes them
+
+Everything refreshes on a configurable interval (1–30 s).
+
+## Requirements
+
+- **KDE Plasma 6** (Qt 6)
+- For **SSD SMART**: `smartmontools` (`smartctl`) and `jq` — read by a small
+  root-side timer (see below). Without them the SMART line just stays hidden.
+- For **live power-profile switching**: `power-profiles-daemon` or `tuned-ppd`
+  (most modern distros ship one). Without it the switch is hidden.
+
+CPU/RAM/disk/network/temperatures need nothing extra — they come from `/proc`
+and `/sys` (`hwmon`).
+
+## Install
 
 ```bash
-git clone <repo> ~/Schreibtisch/battinfo
-~/Schreibtisch/battinfo/install.sh
+git clone https://github.com/sunsetterphoto/HealthPanel.git
+cd HealthPanel
+./install.sh        # NOT with sudo — it calls sudo itself only for the SMART timer
 ```
 
-`install.sh` ist idempotent und tut Folgendes:
+Then add the widget: right-click the desktop or panel → *Add Widgets…* →
+**HealthPanel**.
 
-- legt stabile Symlinks in `~/.local/bin/` an (`battinfo`, `battinfo-snapshot`)
-- legt systemd-`--user`-Unit-Symlinks an (`battinfo-snapshot.{service,timer}`)
-- aktiviert den Timer (daily, persistent)
-- installiert (oder upgraded) das Plasma-Widget via `kpackagetool6` — übersprungen falls KDE nicht da
+`install.sh` installs the Plasma widget, the optional `battinfo` battery CLI, and
+sets up the root SMART timer. To remove everything: `./uninstall.sh`.
 
-**Updates:** `git pull` und ggf. `install.sh` neu — keine Versions-Pflege irgendwo.
-Die Symlinks zeigen auf den Projektpfad, das Widget wird atomisch geswappt.
+> **Reload note:** Plasma caches widget QML in memory. After an upgrade
+> (`git pull && ./install.sh`), restart the shell to pick up changes:
+> `systemctl --user restart plasma-plasmashell.service`.
 
-## History
+### SSD SMART (root timer)
 
-Der Timer schreibt täglich (mit ±15 min Jitter) eine Zeile nach
-`~/.local/state/battinfo/history.tsv`:
+SMART data needs root, so the widget never reads the disk directly. A tiny
+script (`healthpanel-smart`) runs hourly via a **systemd system timer**, writes
+`{healthPct, powerOnHours, tbwTB}` to `/var/lib/healthpanel/smart.json`
+(world-readable), and the widget only reads that file. `install.sh` sets this up
+(asks for sudo once). On SELinux systems the units are copied into `/etc` and
+re-labelled with `restorecon` (a home-symlinked system unit would be rejected).
 
-```
-date                   health_pct  fcc_wh   designed_wh  cycles
-2026-05-11 09:00:00    87.03       45.23    51.97        139
-2026-05-12 09:14:00    87.01       45.22    51.97        140
-…
-```
+## Configuration
 
-Persistent=true → falls der Laptop aus war, wird der verpasste Run nachgeholt.
+Right-click the widget → *Configure HealthPanel* → *General*:
 
-Manuell triggern:
+- **Refresh interval** (1–30 s)
+- **System column shows:** per-section checkboxes
+- **Display style** per metric: **Balken** (bar), **Ring** (donut), **Sparkline**
+  (history graph); network: Text or Sparkline
+- **Battery column shows:** per-section checkboxes
+
+## Optional CLI: `battinfo`
+
+A self-contained Bash tool for detailed battery info in the terminal, plus a
+`--user` systemd timer that logs one health snapshot per day to
+`~/.local/state/battinfo/history.tsv`.
+
 ```bash
-systemctl --user start battinfo-snapshot.service
+battinfo            # one-shot report
+battinfo -w         # live watch
+battinfo --history  # show logged history
 ```
 
-Status / Logs:
-```bash
-systemctl --user status battinfo-snapshot.timer
-journalctl --user -u battinfo-snapshot --since "1 week ago"
-```
+## Known limitations
 
-## Deinstallation
+Some sensors simply aren't exposed by all hardware/firmware:
 
-```bash
-~/Schreibtisch/battinfo/uninstall.sh
-```
+- **RAM temperature** is unavailable on many laptops (the embedded controller
+  holds the DDR5 SPD i2c bus exclusively, so the `spd5118` driver can't bind).
+- **Battery temperature** is unavailable when the kernel's `power_supply`
+  interface and `upower` don't report it (e.g. ThinkPad Z13). HealthPanel shows
+  no guessed value in that case.
 
-Entfernt Symlinks + deaktiviert Timer. Die History unter `~/.local/state/battinfo/`
-bleibt liegen (bewusst — manuell löschen falls gewünscht).
+Missing sensors are hidden automatically.
 
-## Anforderungen
+## Architecture
 
-- Linux mit `/sys/class/power_supply/BAT0`
-- bash 4+, coreutils, awk, sed, `tput`, `upower`
-- systemd (für den optionalen History-Timer)
+- All parsing/maths lives in pure JS (`plasmoid/contents/ui/sysparse.js`), shared
+  by QML and Node — unit-tested with `node --test tests/sysparse.test.js`.
+- `SystemData.qml` feeds probe output through `sysparse.parseProbe()`;
+  `SystemColumn.qml` renders the left column, `BatteryCard.qml` the right,
+  `MonitorView.qml` combines them as the full representation.
+- One probe per refresh takes two `/proc` snapshots 0.5 s apart in a single
+  `sh -c` call, so rates are self-contained (no cross-tick state).
+
+See `CLAUDE.md` for developer notes.
+
+## License
+
+[GPL-3.0](LICENSE) · © snieds ([@sunsetterphoto](https://github.com/sunsetterphoto))
