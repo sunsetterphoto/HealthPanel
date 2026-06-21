@@ -39,6 +39,12 @@
       <default>false</default>
     </entry>
 
+    <!-- Panel/compact layout: JSON array of icons, each {type, texts:[keys]}.
+         type ∈ battery|cpu|ram|disk|net. Default: one battery icon with charge%. -->
+    <entry name="panelLayout" type="String">
+      <default>[{"type":"battery","texts":["charge"]}]</default>
+    </entry>
+
     <!-- Anzeige-Stil pro Metrik: bar | ring | sparkline (netz: text | sparkline) -->
     <entry name="cpuStyle" type="String">
       <default>sparkline</default>

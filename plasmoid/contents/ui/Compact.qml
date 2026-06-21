@@ -1,13 +1,14 @@
-// Compact representation — shown in a panel or as a small desktop icon.
-// Default: a single battery icon that also encodes the power profile (leaf for
-// power-saver, plain for balanced, overlay for performance), plus the charge %.
-// Reports its size via Layout.* so the panel grants room for the label.
+// Compact representation — a configurable list of icons (battery/cpu/ram/disk/net),
+// each optionally with one or more text values. Default: one battery icon (which
+// also encodes the power profile) + charge %. Reports its size via Layout.* so the
+// panel grants room for the labels.
 import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.components as PC3
 import org.kde.plasma.plasmoid
 import org.kde.plasma.core as PlasmaCore
+import "panelmeta.js" as PanelMeta
 
 MouseArea {
     id: compact
@@ -20,6 +21,7 @@ MouseArea {
     readonly property bool _hasProfile: compact.system !== null && compact.system !== undefined
         && compact.system.hasPowerProfile === true
     readonly property bool _vertical: Plasmoid.formFactor === PlasmaCore.Types.Vertical
+    readonly property var _layout: PanelMeta.parseLayout(Plasmoid.configuration.panelLayout)
 
     implicitWidth: row.implicitWidth + Kirigami.Units.smallSpacing * 2
     implicitHeight: Math.max(row.implicitHeight, Kirigami.Units.iconSizes.small)
@@ -29,42 +31,90 @@ MouseArea {
     hoverEnabled: true
     onClicked: compact.toggleExpanded()
 
+    // KDE combines charge level + power profile into one battery icon.
+    function batteryIconName() {
+        if (!compact._ok) return "battery-missing"
+        var b = compact.battery, c = b.capacityPct
+        var charging = b.status === "Charging"
+        if (compact._hasProfile) {
+            var lvl = Math.max(0, Math.min(100, Math.round(c / 10) * 10))
+            var lll = ("00" + lvl).slice(-3)
+            var p = compact.system.powerProfile
+            var mode = p === "performance" ? "performance" : (p === "power-saver" ? "powersave" : "balanced")
+            return "battery-" + lll + (charging ? "-charging" : "") + "-profile-" + mode
+        }
+        if (c >= 95) return charging ? "battery-full-charging" : "battery-full"
+        if (c >= 60) return charging ? "battery-good-charging" : "battery-good"
+        if (c >= 30) return charging ? "battery-low-charging"  : "battery-low"
+        return charging ? "battery-caution-charging" : "battery-caution"
+    }
+    function iconFor(type) {
+        if (type === "battery") return batteryIconName()
+        return PanelMeta.typeMeta(type).icon
+    }
+    function valueFor(type, key) {
+        var b = compact.battery, s = compact.system
+        if (type === "battery") {
+            if (!compact._ok) return ""
+            if (key === "charge") return b.capacityPct + "%"
+            if (key === "health") return Math.round(b.healthPct) + "%"
+            if (key === "power")  return b.fmtW(b.powerNowW)
+            return ""
+        }
+        if (s === null || s === undefined || s.valid !== true) return ""
+        if (type === "cpu") {
+            if (key === "load") return Math.round(s.cpuPct) + "%"
+            if (key === "temp") return s.hasCpuTemp ? Math.round(s.cpuTempC) + "°" : ""
+        } else if (type === "ram") {
+            if (key === "usage") return Math.round(s.ramPct) + "%"
+            if (key === "used")  return s.fmtGB(s.ramUsedGB)
+            if (key === "swap")  return s.hasSwap ? Math.round(s.swapPct) + "%" : ""
+        } else if (type === "disk") {
+            if (key === "usage") return Math.round(s.diskPct) + "%"
+            if (key === "temp")  return s.hasDiskTemp ? Math.round(s.diskTempC) + "°" : ""
+            if (key === "read")  return "↓" + s.fmtRate(s.diskReadMBps)
+            if (key === "write") return "↑" + s.fmtRate(s.diskWriteMBps)
+        } else if (type === "net") {
+            if (key === "down") return "↓" + s.fmtRate(s.netDownMBps)
+            if (key === "up")   return "↑" + s.fmtRate(s.netUpMBps)
+        }
+        return ""
+    }
+    function textFor(cfg) {
+        if (!cfg || !cfg.texts) return ""
+        var parts = []
+        for (var i = 0; i < cfg.texts.length; i++) {
+            var v = valueFor(cfg.type, cfg.texts[i])
+            if (v.length > 0) parts.push(v)
+        }
+        return parts.join(" ")
+    }
+
     GridLayout {
         id: row
         anchors.centerIn: parent
         flow: compact._vertical ? GridLayout.TopToBottom : GridLayout.LeftToRight
-        rowSpacing: 0
-        columnSpacing: Kirigami.Units.smallSpacing
+        rowSpacing: compact._vertical ? Kirigami.Units.smallSpacing : 0
+        columnSpacing: Kirigami.Units.largeSpacing
 
-        Kirigami.Icon {
-            source: {
-                if (!compact._ok) return "battery-missing"
-                var c = compact.battery.capacityPct
-                var charging = compact.battery.status === "Charging"
-                // KDE combines charge level + power profile into one icon:
-                // battery-<000..100>-[charging-]profile-<powersave|balanced|performance>
-                if (compact._hasProfile) {
-                    var lvl = Math.max(0, Math.min(100, Math.round(c / 10) * 10))
-                    var lll = ("00" + lvl).slice(-3)
-                    var p = compact.system.powerProfile
-                    var mode = p === "performance" ? "performance"
-                             : (p === "power-saver" ? "powersave" : "balanced")
-                    return "battery-" + lll + (charging ? "-charging" : "") + "-profile-" + mode
+        Repeater {
+            model: compact._layout
+            delegate: RowLayout {
+                required property var modelData
+                spacing: Kirigami.Units.smallSpacing
+                Kirigami.Icon {
+                    source: compact.iconFor(modelData.type)
+                    Layout.alignment: Qt.AlignCenter
+                    implicitWidth:  Kirigami.Units.iconSizes.small
+                    implicitHeight: Kirigami.Units.iconSizes.small
                 }
-                if (c >= 95) return charging ? "battery-full-charging" : "battery-full"
-                if (c >= 60) return charging ? "battery-good-charging" : "battery-good"
-                if (c >= 30) return charging ? "battery-low-charging"  : "battery-low"
-                return charging ? "battery-caution-charging" : "battery-caution"
+                PC3.Label {
+                    text: compact.textFor(modelData)
+                    visible: text.length > 0
+                    font.pixelSize: Kirigami.Theme.defaultFont.pixelSize
+                    Layout.alignment: Qt.AlignCenter
+                }
             }
-            Layout.alignment: Qt.AlignCenter
-            implicitWidth:  Kirigami.Units.iconSizes.small
-            implicitHeight: Kirigami.Units.iconSizes.small
-        }
-
-        PC3.Label {
-            text: compact._ok ? compact.battery.capacityPct + "%" : "—"
-            font.pixelSize: Kirigami.Theme.defaultFont.pixelSize
-            Layout.alignment: Qt.AlignCenter
         }
     }
 }
