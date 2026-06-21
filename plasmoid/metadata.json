@@ -7,12 +7,12 @@
             }
         ],
         "Category": "System Information",
-        "Description": "Detailed laptop battery info — health, cycles, designed/full/remaining capacity, Lenovo charge thresholds",
+        "Description": "System monitor: CPU, RAM, swap, disk usage/IO, network, power profile, temperatures and SSD SMART — beside detailed battery health (cycles, wear, Lenovo thresholds)",
         "Icon": "battery",
         "Id": "org.kde.battinfo",
         "License": "GPL-3.0",
         "Name": "Battery Info",
-        "Version": "1.0.0"
+        "Version": "1.1.0"
     },
     "X-Plasma-API-Minimum-Version": "6.0"
 }

@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# battinfo-smart — root-only: write NVMe SMART essentials to a world-readable cache.
+# Invoked hourly by the system-level battinfo-smart.timer. Idempotent.
+set -euo pipefail
+DEV="${1:-/dev/nvme0}"
+OUT=/var/lib/battinfo
+mkdir -p "$OUT"
+tmp="$(mktemp)"
+if smartctl -j -a "$DEV" 2>/dev/null | jq -e '{
+        healthPct: (100 - .nvme_smart_health_information_log.percentage_used),
+        powerOnHours: .power_on_time.hours,
+        tbwTB: (((.nvme_smart_health_information_log.data_units_written * 512000) / 1e12 * 10) | round / 10),
+        valid: true
+    }' > "$tmp" 2>/dev/null && [ -s "$tmp" ]; then
+    mv "$tmp" "$OUT/smart.json"
+else
+    rm -f "$tmp"
+    printf '{"valid":false}\n' > "$OUT/smart.json"
+fi
+chmod 644 "$OUT/smart.json"

@@ -1,0 +1,6 @@
+[Unit]
+Description=battinfo NVMe SMART cache refresh
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/battinfo-smart

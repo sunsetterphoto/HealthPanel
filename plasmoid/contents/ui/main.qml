@@ -16,6 +16,10 @@ PlasmoidItem {
         refreshSeconds: Plasmoid.configuration.refreshSeconds
     }
 
+    property alias system: systemData
+
+    SystemData { id: systemData }
+
     // ---- data probe via executable DataSource ----
     // We cat the uevent file (contains almost everything) plus three optional
     // Lenovo files; missing files become empty BATTINFO_* values which the
@@ -36,13 +40,74 @@ PlasmoidItem {
         }
     }
 
+    // ---- system probe: two snapshots 0.5s apart, marker-delimited ----
+    readonly property string _sysProbeCmd:
+        "echo '===T1==='; date +%s.%N; " +
+        "echo '===STAT1==='; cat /proc/stat; " +
+        "echo '===NET1==='; cat /proc/net/dev; " +
+        "echo '===DISK1==='; cat /proc/diskstats; " +
+        "sleep 0.5; " +
+        "echo '===T2==='; date +%s.%N; " +
+        "echo '===STAT2==='; cat /proc/stat; " +
+        "echo '===NET2==='; cat /proc/net/dev; " +
+        "echo '===DISK2==='; cat /proc/diskstats; " +
+        "echo '===MEM==='; cat /proc/meminfo; " +
+        "echo '===CORES==='; for c in /sys/devices/system/cpu/cpu[0-9]*; do echo \"$(basename $c) $(cat $c/topology/core_id 2>/dev/null)\"; done; " +
+        "echo '===DF==='; df -B1 --output=source,used,size / | tail -1; " +
+        "echo '===TEMPS==='; for h in /sys/class/hwmon/hwmon*; do echo \"$(cat $h/name 2>/dev/null) $(cat $h/temp1_input 2>/dev/null)\"; done; " +
+        "echo '===SMART==='; cat /var/lib/battinfo/smart.json 2>/dev/null"
+
+    readonly property string _profileGetCmd:
+        "busctl --system get-property net.hadess.PowerProfiles " +
+        "/net/hadess/PowerProfiles net.hadess.PowerProfiles ActiveProfile 2>/dev/null"
+
+    P5S.DataSource {
+        id: sysProbe
+        engine: "executable"
+        connectedSources: []
+        onNewData: function(source, data) {
+            systemData.applyProbe(data["stdout"] || "")
+            disconnectSource(source)
+        }
+    }
+
+    P5S.DataSource {
+        id: profileProbe
+        engine: "executable"
+        connectedSources: []
+        onNewData: function(source, data) {
+            systemData.applyProfile(data["stdout"] || "")
+            disconnectSource(source)
+        }
+    }
+
+    P5S.DataSource {
+        id: profileSetter
+        engine: "executable"
+        connectedSources: []
+        onNewData: function(source, data) {
+            disconnectSource(source)
+            profileProbe.connectSource(root._profileGetCmd)   // re-read to confirm
+        }
+    }
+
+    function setPowerProfile(name) {
+        var cmd = "busctl --system set-property net.hadess.PowerProfiles " +
+                  "/net/hadess/PowerProfiles net.hadess.PowerProfiles ActiveProfile s '" + name + "'"
+        profileSetter.connectSource(cmd)
+    }
+
     Timer {
         id: probeTimer
         interval: Plasmoid.configuration.refreshSeconds * 1000
         running: true
         repeat: true
         triggeredOnStart: true
-        onTriggered: probe.connectSource(root._probeCmd)
+        onTriggered: {
+            probe.connectSource(root._probeCmd)
+            sysProbe.connectSource(root._sysProbeCmd)
+            profileProbe.connectSource(root._profileGetCmd)
+        }
     }
 
     // ---- presentation ----
@@ -60,8 +125,10 @@ PlasmoidItem {
         onClicked: root.expanded = !root.expanded
     }
 
-    fullRepresentation: BatteryCard {
+    fullRepresentation: MonitorView {
         battery: root.battery
+        system: root.system
+        onSetProfile: function(name) { root.setPowerProfile(name) }
     }
 
     Plasmoid.icon: {

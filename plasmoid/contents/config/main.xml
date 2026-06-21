@@ -7,8 +7,8 @@
 
   <group name="General">
     <entry name="refreshSeconds" type="Int">
-      <default>5</default>
-      <min>2</min>
+      <default>2</default>
+      <min>1</min>
       <max>30</max>
     </entry>
   </group>
