@@ -74,6 +74,12 @@ cpu_temp() {
         t=$(hwmon_temp "$n"); [[ -n "$t" ]] && { printf '%s' "$t"; return; }
     done
 }
+gpu_temp() {
+    local t
+    for n in amdgpu radeon i915 nouveau; do
+        t=$(hwmon_temp "$n"); [[ -n "$t" ]] && { printf '%s' "$t"; return; }
+    done
+}
 
 # ---------- system gathering ----------
 # CPU busy% from two /proc/stat snapshots, $SAMPLE apart
@@ -116,6 +122,18 @@ gather_system() {
         net.hadess.PowerProfiles ActiveProfile 2>/dev/null | grep -oE 'performance|balanced|power-saver' || true)
     [[ -z "$POWER_PROFILE" ]] && POWER_PROFILE=$(busctl --system get-property net.hadess.PowerProfiles \
         /net/hadess/PowerProfiles net.hadess.PowerProfiles ActiveProfile 2>/dev/null | grep -oE 'performance|balanced|power-saver' || true)
+
+    # GPU (first DRM card exposing gpu_busy_percent)
+    GPU_BUSY=""; VRAM_USED=""; VRAM_TOTAL=""
+    for c in /sys/class/drm/card*/device; do
+        [ -r "$c/gpu_busy_percent" ] || continue
+        GPU_BUSY=$(cat "$c/gpu_busy_percent")
+        VRAM_USED=$(cat "$c/mem_info_vram_used" 2>/dev/null)
+        VRAM_TOTAL=$(cat "$c/mem_info_vram_total" 2>/dev/null)
+        break
+    done
+    GPU_TEMP=$(gpu_temp)
+    GPU_NAME=$(lspci 2>/dev/null | grep -iE 'vga|3d controller' | head -1 | sed 's/.*: //; s/ (rev.*//')
 }
 
 render_system() {
@@ -154,6 +172,19 @@ render_system() {
         local sv; sv=$(jq -r '.valid' "$SMART_CACHE" 2>/dev/null || echo false)
         if [[ "$sv" == "true" ]]; then
             kv "SSD health" "$(jq -r '"\(.healthPct)%  ·  \(.powerOnHours) h  ·  \(.tbwTB) TBW"' "$SMART_CACHE")"
+        fi
+    fi
+    # GPU
+    if [[ -n "${GPU_BUSY:-}" ]]; then
+        [[ -n "${GPU_NAME:-}" ]] && kv "GPU" "$GPU_NAME"
+        local glc; glc=$(load_color "$GPU_BUSY")
+        printf '  %-15s %s%s%%%s  %s%s%s%s\n' "GPU load" "$glc" "$GPU_BUSY" "$C_RESET" \
+            "$glc" "$(bar "$GPU_BUSY")" "$C_RESET" "${GPU_TEMP:+  ${GPU_TEMP}°C}"
+        if [[ -n "${VRAM_TOTAL:-}" && "${VRAM_TOTAL:-0}" -gt 0 ]]; then
+            local vp; vp=$(percent_of "$VRAM_USED" "$VRAM_TOTAL")
+            printf '  %-15s %s%%  %s  (%s / %s GB)\n' "VRAM" "$vp" "$(bar "$vp")" \
+                "$(awk -v u="$VRAM_USED" -v d="$gb" 'BEGIN{printf "%.1f", u/d}')" \
+                "$(awk -v t="$VRAM_TOTAL" -v d="$gb" 'BEGIN{printf "%.1f", t/d}')"
         fi
     fi
     # Network

@@ -65,7 +65,11 @@ PlasmoidItem {
         "echo '===CORES==='; for c in /sys/devices/system/cpu/cpu[0-9]*; do echo \"$(basename $c) $(cat $c/topology/core_id 2>/dev/null)\"; done; " +
         "echo '===DF==='; df -B1 --output=source,used,size / | tail -1; " +
         "echo '===TEMPS==='; for h in /sys/class/hwmon/hwmon*; do echo \"$(cat $h/name 2>/dev/null) $(cat $h/temp1_input 2>/dev/null)\"; done; " +
-        "echo '===SMART==='; cat /var/lib/healthpanel/smart.json 2>/dev/null"
+        "echo '===SMART==='; cat /var/lib/healthpanel/smart.json 2>/dev/null; " +
+        "echo '===GPU==='; for c in /sys/class/drm/card*/device; do " +
+        "if [ -e \"$c/gpu_busy_percent\" ]; then echo \"BUSY=$(cat $c/gpu_busy_percent)\"; " +
+        "echo \"VRAMUSED=$(cat $c/mem_info_vram_used 2>/dev/null)\"; " +
+        "echo \"VRAMTOTAL=$(cat $c/mem_info_vram_total 2>/dev/null)\"; break; fi; done"
 
     readonly property string _profileGetCmd:
         "busctl --system get-property net.hadess.PowerProfiles " +

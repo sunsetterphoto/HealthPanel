@@ -31,6 +31,15 @@ QtObject {
     property real diskTempC: 0
     property bool hasDiskTemp: false
 
+    // GPU
+    property bool hasGpu: false
+    property real gpuBusy: 0
+    property real vramPct: 0
+    property real vramUsedGB: 0
+    property real vramTotalGB: 0
+    property real gpuTempC: 0
+    property bool hasGpuTemp: false
+
     property real netDownMBps: 0
     property real netUpMBps: 0
 
@@ -50,6 +59,7 @@ QtObject {
     property var ramHist: []        // RAM % (0..100)
     property var diskIoHist: []     // disk read+write MB/s (raw)
     property var netHist: []        // net down+up MB/s (raw)
+    property var gpuHist: []        // GPU busy % (0..100)
 
     function _push(arr, v) {
         var a = arr.slice();       // copy so the property reassignment triggers bindings
@@ -75,6 +85,13 @@ QtObject {
         cpuTempC = hasCpuTemp ? r.cpuTempC : 0;
         hasDiskTemp = (r.diskTempC !== null && r.diskTempC !== undefined);
         diskTempC = hasDiskTemp ? r.diskTempC : 0;
+        hasGpu = r.gpuValid === true;
+        if (hasGpu) {
+            gpuBusy = r.gpuBusy; vramPct = r.vramPct;
+            vramUsedGB = r.vramUsedGB; vramTotalGB = r.vramTotalGB;
+        }
+        hasGpuTemp = (r.gpuTempC !== null && r.gpuTempC !== undefined);
+        gpuTempC = hasGpuTemp ? r.gpuTempC : 0;
         smartValid = r.smartValid === true;
         if (smartValid) {
             smartHealthPct = r.smartHealthPct;
@@ -85,6 +102,7 @@ QtObject {
         ramHist    = _push(ramHist, ramPct);
         diskIoHist = _push(diskIoHist, diskReadMBps + diskWriteMBps);
         netHist    = _push(netHist, netDownMBps + netUpMBps);
+        if (hasGpu) gpuHist = _push(gpuHist, gpuBusy);
     }
 
     function applyProfile(stdout) {

@@ -196,3 +196,13 @@ test('parseProbe returns valid:false on empty/garbage input', () => {
   assert.equal(S.parseProbe('').valid, false);
   assert.equal(S.parseProbe('nothing useful').valid, false);
 });
+
+test('parseGpu reads busy% and VRAM usage; invalid when absent', () => {
+  const g = S.parseGpu('BUSY=7\nVRAMUSED=1892376576\nVRAMTOTAL=8589934592');
+  assert.equal(g.valid, true);
+  assert.equal(g.busy, 7);
+  assert.ok(Math.abs(g.vramUsedGB - 1.762) < 0.01);
+  assert.ok(Math.abs(g.vramTotalGB - 8.0) < 0.01);
+  assert.ok(Math.abs(g.vramPct - 22.0) < 0.5);
+  assert.equal(S.parseGpu('').valid, false);
+});

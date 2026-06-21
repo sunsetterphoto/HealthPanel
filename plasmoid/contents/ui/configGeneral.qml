@@ -27,6 +27,12 @@ Kirigami.FormLayout {
     property bool  cfg_showTempsDefault: true
     property alias cfg_cpuCoresLogical: cpuLogicalCheck.checked
     property bool  cfg_cpuCoresLogicalDefault: false
+    property alias cfg_showGpu: gpuCheck.checked
+    property bool  cfg_showGpuDefault: true
+    property string cfg_gpuStyle: "sparkline"
+    property string cfg_gpuStyleDefault: "sparkline"
+    property string cfg_vramStyle: "bar"
+    property string cfg_vramStyleDefault: "bar"
 
     // --- per-metric styles (plain props; combos set them via onActivated) ---
     property string cfg_cpuStyle: "sparkline"
@@ -102,6 +108,7 @@ Kirigami.FormLayout {
         leftPadding: cpuCheck.indicator.width + Kirigami.Units.smallSpacing
     }
     QQC2.CheckBox { id: ramCheck;   text: i18n("RAM + Swap") }
+    QQC2.CheckBox { id: gpuCheck;   text: i18n("GPU + VRAM") }
     QQC2.CheckBox { id: diskCheck;  text: i18n("Festplatte") }
     QQC2.CheckBox { id: netCheck;   text: i18n("Netzwerk") }
     QQC2.CheckBox { id: smartCheck; text: i18n("SSD-SMART (Health / Stunden / TBW)") }
@@ -140,6 +147,22 @@ Kirigami.FormLayout {
         model: form.netStyles
         onActivated: form.cfg_netStyle = currentValue
         Component.onCompleted: currentIndex = indexOfValue(form.cfg_netStyle)
+    }
+    QQC2.ComboBox {
+        id: gpuStyleBox
+        Kirigami.FormData.label: i18n("Stil — GPU-Last:")
+        textRole: "text"; valueRole: "value"
+        model: form.graphStyles
+        onActivated: form.cfg_gpuStyle = currentValue
+        Component.onCompleted: currentIndex = indexOfValue(form.cfg_gpuStyle)
+    }
+    QQC2.ComboBox {
+        id: vramStyleBox
+        Kirigami.FormData.label: i18n("Stil — VRAM:")
+        textRole: "text"; valueRole: "value"
+        model: [{ text: i18n("Balken"), value: "bar" }, { text: i18n("Nur Text"), value: "text" }]
+        onActivated: form.cfg_vramStyle = currentValue
+        Component.onCompleted: currentIndex = indexOfValue(form.cfg_vramStyle)
     }
 
     Item { Kirigami.FormData.isSection: true }

@@ -22,6 +22,9 @@ ColumnLayout {
     property bool showSmart: true
     property bool showTemps: true
     property bool cpuCoresLogical: false   // false = physical cores, true = threads
+    property bool showGpu: true
+    property string gpuStyle: "sparkline"  // bar | ring | sparkline (GPU load)
+    property string vramStyle: "bar"       // bar | text (VRAM usage)
 
     // per-metric display style
     property string cpuStyle: "bar"     // bar | ring | sparkline
@@ -200,8 +203,54 @@ ColumnLayout {
         Spark { visible: col.cpuStyle === "sparkline"; points: col._ok ? col.system.cpuHist : []; maxValue: 100; fill: "#3daee9" }
     }
 
+    // ---- GPU + VRAM ----
+    SectionRule { visible: col._ok && col.showGpu && col.system.hasGpu && (col._pm || col.showCpu) }
+    ColumnLayout {
+        Layout.fillWidth: true
+        visible: col._ok && col.showGpu && col.system.hasGpu
+        spacing: 2
+        RowLayout {
+            Layout.fillWidth: true
+            RowLayout {
+                spacing: Kirigami.Units.smallSpacing
+                MLabel { text: "GPU" }
+                PC3.Label {
+                    visible: col._ok && col.showTemps && col.system.hasGpuTemp
+                    text: col._ok ? col.system.fmtTemp(col.system.gpuTempC) : ""
+                    opacity: 0.5; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                }
+            }
+            Item { Layout.fillWidth: true }
+            Ring {
+                visible: col.gpuStyle === "ring"
+                fraction: col._ok ? col.system.gpuBusy / 100 : 0
+                fill: "#e67e22"
+                centerText: col._ok ? Math.round(col.system.gpuBusy) + "" : "—"
+            }
+            PC3.Label {
+                visible: col.gpuStyle !== "ring"
+                text: col._ok ? col.system.fmtPct(col.system.gpuBusy) : "—"
+                font.bold: true; font.pixelSize: Kirigami.Theme.defaultFont.pixelSize
+            }
+        }
+        Bar { visible: col.gpuStyle === "bar"; fraction: col._ok ? col.system.gpuBusy / 100 : 0; fill: "#e67e22" }
+        Spark { visible: col.gpuStyle === "sparkline"; points: col._ok ? col.system.gpuHist : []; maxValue: 100; fill: "#e67e22" }
+
+        RowLayout {
+            Layout.fillWidth: true
+            MLabel { text: "VRAM" }
+            Item { Layout.fillWidth: true }
+            PC3.Label { text: col._ok ? col.system.fmtPct(col.system.vramPct) : "—"; font.bold: true }
+        }
+        PC3.Label {
+            text: col._ok ? col.system.fmtGB(col.system.vramUsedGB) + " / " + col.system.fmtGB(col.system.vramTotalGB) : ""
+            opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+        }
+        Bar { visible: col.vramStyle === "bar"; fraction: col._ok ? col.system.vramPct / 100 : 0; fill: "#d35400" }
+    }
+
     // ---- RAM + swap ----
-    SectionRule { visible: col._ok && col.showRam && (col._pm || col.showCpu) }
+    SectionRule { visible: col._ok && col.showRam && (col._pm || col.showCpu || (col.showGpu && col.system.hasGpu)) }
     ColumnLayout {
         Layout.fillWidth: true
         visible: col._ok && col.showRam

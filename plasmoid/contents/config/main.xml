@@ -34,9 +34,18 @@
     <entry name="showTemps" type="Bool">
       <default>true</default>
     </entry>
+    <entry name="showGpu" type="Bool">
+      <default>true</default>
+    </entry>
     <!-- CPU core bars: false = physical cores, true = logical cores (threads) -->
     <entry name="cpuCoresLogical" type="Bool">
       <default>false</default>
+    </entry>
+    <entry name="gpuStyle" type="String">
+      <default>sparkline</default>
+    </entry>
+    <entry name="vramStyle" type="String">
+      <default>bar</default>
     </entry>
 
     <!-- Panel/compact layout: JSON array of icons, each {type, texts:[keys]}.

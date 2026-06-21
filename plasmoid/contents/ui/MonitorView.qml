@@ -46,8 +46,11 @@ Item {
             showNet:       Plasmoid.configuration.showNet
             showSmart:     Plasmoid.configuration.showSmart
             showTemps:     Plasmoid.configuration.showTemps
+            showGpu:       Plasmoid.configuration.showGpu
             cpuCoresLogical: Plasmoid.configuration.cpuCoresLogical
             cpuStyle:      Plasmoid.configuration.cpuStyle
+            gpuStyle:      Plasmoid.configuration.gpuStyle
+            vramStyle:     Plasmoid.configuration.vramStyle
             ramStyle:      Plasmoid.configuration.ramStyle
             diskStyle:     Plasmoid.configuration.diskStyle
             netStyle:      Plasmoid.configuration.netStyle

@@ -142,15 +142,16 @@ function parseProfile(text) {
 }
 
 function parseTemps(text) {
-    var cpu = null, disk = null;
+    var cpu = null, disk = null, gpu = null;
     text.split("\n").forEach(function (line) {
         var mm = line.match(/^(\S+)\s+(\d+)\s*$/);
         if (!mm) return;
         var name = mm[1], c = parseInt(mm[2], 10) / 1000;
         if (cpu === null && (name === "k10temp" || name === "coretemp" || name === "zenpower" || name === "cpu_thermal" || name === "soc_thermal")) cpu = c;
         if (disk === null && name === "nvme") disk = c;
+        if (gpu === null && (name === "amdgpu" || name === "radeon" || name === "i915" || name === "nouveau")) gpu = c;
     });
-    return { cpuTempC: cpu, diskTempC: disk };
+    return { cpuTempC: cpu, diskTempC: disk, gpuTempC: gpu };
 }
 
 function parseSmart(text) {
@@ -159,6 +160,23 @@ function parseSmart(text) {
         if (!o || o.valid !== true) return { valid: false };
         return { valid: true, healthPct: o.healthPct, powerOnHours: o.powerOnHours, tbwTB: o.tbwTB };
     } catch (e) { return { valid: false }; }
+}
+
+// GPU section: key=value lines BUSY=, VRAMUSED=, VRAMTOTAL= (bytes).
+function parseGpu(text) {
+    var kv = {};
+    (text || "").split("\n").forEach(function (line) {
+        var m = line.match(/^(\w+)=(\d+)/);
+        if (m) kv[m[1]] = parseInt(m[2], 10);
+    });
+    var total = kv.VRAMTOTAL || 0, used = kv.VRAMUSED || 0;
+    return {
+        valid: kv.BUSY !== undefined,
+        busy: kv.BUSY || 0,
+        vramUsedGB: used / 1073741824,
+        vramTotalGB: total / 1073741824,
+        vramPct: total > 0 ? (used / total) * 100 : 0
+    };
 }
 
 function _sections(stdout) {
@@ -188,6 +206,7 @@ function parseProbe(stdout) {
     var d1 = parseDiskstats(s.DISK1 || "", dev), d2 = parseDiskstats(s.DISK2 || "", dev);
     var temps = parseTemps(s.TEMPS || "");
     var smart = parseSmart(s.SMART || "");
+    var gpu = parseGpu(s.GPU || "");
 
     return {
         valid: true,
@@ -205,10 +224,16 @@ function parseProbe(stdout) {
         netUpMBps: rateMBps(n1.txBytes, n2.txBytes, dt),
         cpuTempC: temps.cpuTempC,
         diskTempC: temps.diskTempC,
+        gpuTempC: temps.gpuTempC,
         smartValid: smart.valid === true,
         smartHealthPct: smart.healthPct,
         smartPowerOnHours: smart.powerOnHours,
-        smartTbwTB: smart.tbwTB
+        smartTbwTB: smart.tbwTB,
+        gpuValid: gpu.valid,
+        gpuBusy: gpu.busy,
+        vramUsedGB: gpu.vramUsedGB,
+        vramTotalGB: gpu.vramTotalGB,
+        vramPct: gpu.vramPct
     };
 }
 
@@ -216,5 +241,5 @@ function parseProbe(stdout) {
 if (typeof module !== "undefined" && module.exports) {
     module.exports = { parseMeminfo, memStats, parseCpuStat, cpuPct, parseCoreIds,
         physicalCoreLoads, parseNetDev, rateMBps, sectorsRateMBps, parseDiskstats,
-        deviceBase, parseDfLine, parseProfile, parseTemps, parseSmart, parseProbe };
+        deviceBase, parseDfLine, parseProfile, parseTemps, parseSmart, parseGpu, parseProbe };
 }
