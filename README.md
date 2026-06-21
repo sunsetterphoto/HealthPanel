@@ -7,24 +7,7 @@ temperatures, SSD SMART) beside a detailed battery card — in one tidy popup.
 > Built and tested on Wayland with Plasma 6 (Qt 6.11) on Fedora, but written to
 > work on any Linux laptop/desktop running Plasma 6.
 
-```
-┌──────────────────────────────────────────────┐
-│ Power-Mode [Leistung|Ausgewogen|Sparen]  │ S │  SMP 5B11M90082         │
-│ ─────────────────────────────────────    │ e │  BAT0 · Li-poly        │
-│ CPU         ▮▮▯▯▮▯▯▮  23%   39°C           │ p │  Health         87.0%  │
-│ [████░░░░░░░░░░░░░░]                       │ a │  [███████████████░░]   │
-│ RAM                          57%          │ r │  Cycles           139  │
-│ 9.2 / 16 GB   [██████████░░░░]            │ a │  Designed    51.97 Wh  │
-│ Swap 0.4/8 GB [█░░░░░░░░░░░░]              │ t │  Remaining 40.4 (89%)  │
-│ DISK ↓8 ↑2 MB/s  34°C        43%          │ o │  Status   ↓ 5h 36m     │
-│ [█████████░░░░░░░]                         │ r │  Power draw    7.41 W  │
-│ 98% Health · 14.520 h · 47 TBW            │   │  Charge limit 75–80%   │
-│ NETZ   ↓ 2.4 MB/s   ↑ 0.3 MB/s            │   │                        │
-└──────────────────────────────────────────────┘
-```
-
-*(Replace this sketch with a real screenshot — drop a PNG into `screenshots/`
-and reference it here.)*
+![HealthPanel](screenshots/healthpanel.png)
 
 ## Features
 
@@ -107,17 +90,22 @@ battinfo -w         # live watch
 battinfo --history  # show logged history
 ```
 
-## Known limitations
+## Hardware notes
 
-Some sensors simply aren't exposed by all hardware/firmware:
+HealthPanel was developed and tested on a **Lenovo ThinkPad Z13 Gen 2**. It reads
+whatever sensors your machine exposes and **hides anything that isn't available** —
+so what you actually see depends on your hardware and firmware, not on a fixed
+feature set.
 
-- **RAM temperature** is unavailable on many laptops (the embedded controller
-  holds the DDR5 SPD i2c bus exclusively, so the `spd5118` driver can't bind).
-- **Battery temperature** is unavailable when the kernel's `power_supply`
-  interface and `upower` don't report it (e.g. ThinkPad Z13). HealthPanel shows
-  no guessed value in that case.
+Two sensors happen to be unreachable from Linux *on the Z13 Gen 2 specifically* —
+**your laptop may well expose them:**
 
-Missing sensors are hidden automatically.
+- **RAM temperature** — on the Z13 Gen 2 the embedded controller holds the DDR5
+  SPD i2c bus exclusively, so the `spd5118` driver can't bind. Many other boards
+  do expose a DIMM/SPD temperature, and HealthPanel will show it when present.
+- **Battery temperature** — the kernel `power_supply` interface and `upower`
+  don't report it on this model. Plenty of laptops do. HealthPanel never displays
+  a guessed value: if the sensor isn't there, the field simply doesn't appear.
 
 ## Architecture
 
@@ -128,8 +116,6 @@ Missing sensors are hidden automatically.
   `MonitorView.qml` combines them as the full representation.
 - One probe per refresh takes two `/proc` snapshots 0.5 s apart in a single
   `sh -c` call, so rates are self-contained (no cross-tick state).
-
-See `CLAUDE.md` for developer notes.
 
 ## License
 
