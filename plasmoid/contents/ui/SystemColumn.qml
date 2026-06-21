@@ -34,28 +34,32 @@ ColumnLayout {
     }
 
     // ---- Power-Mode ----
-    MLabel { text: "Power-Mode" }
     QQC2.ButtonGroup { id: pmGroup }
-    RowLayout {
+    ColumnLayout {
         Layout.fillWidth: true
         visible: col._ok && col.system.hasPowerProfile
-        spacing: 2
-        Repeater {
-            model: [
-                { id: "performance", label: "Leistung" },
-                { id: "balanced",    label: "Ausgewogen" },
-                { id: "power-saver", label: "Sparen" }
-            ]
-            delegate: QQC2.Button {
-                required property var modelData
-                Layout.fillWidth: true
-                flat: true
-                checkable: true
-                QQC2.ButtonGroup.group: pmGroup
-                checked: col._ok && col.system.powerProfile === modelData.id
-                text: modelData.label
-                font.pixelSize: Kirigami.Theme.smallFont.pixelSize
-                onClicked: col.setProfile(modelData.id)
+        spacing: Kirigami.Units.smallSpacing
+        MLabel { text: "Power-Mode" }
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 2
+            Repeater {
+                model: [
+                    { id: "performance", label: "Leistung" },
+                    { id: "balanced",    label: "Ausgewogen" },
+                    { id: "power-saver", label: "Sparen" }
+                ]
+                delegate: QQC2.Button {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    flat: true
+                    checkable: true
+                    QQC2.ButtonGroup.group: pmGroup
+                    checked: col._ok && col.system.powerProfile === modelData.id
+                    text: modelData.label
+                    font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                    onClicked: col.setProfile(modelData.id)
+                }
             }
         }
     }
@@ -131,7 +135,7 @@ ColumnLayout {
         MLabel { text: "DISK" }
         PC3.Label {
             leftPadding: Kirigami.Units.smallSpacing
-            text: col._ok ? "↓" + col.system.fmtRate(col.system.diskReadMBps) + " ↑" + col.system.fmtRate(col.system.diskWriteMBps) : ""
+            text: col._ok ? "↓ " + col.system.fmtRate(col.system.diskReadMBps) + "  ↑ " + col.system.fmtRate(col.system.diskWriteMBps) : ""
             opacity: 0.45; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
         }
         PC3.Label {
