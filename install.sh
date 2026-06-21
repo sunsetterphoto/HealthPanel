@@ -25,19 +25,19 @@ link() {
     echo "  link  $dest -> $src"
 }
 
-echo "Installing HealthPanel (widget + battinfo CLI) from $PROJECT_DIR ..."
+echo "Installing HealthPanel (widget + healthpanel CLI) from $PROJECT_DIR ..."
 
-chmod +x "$PROJECT_DIR/battinfo" "$PROJECT_DIR/battinfo-snapshot"
+chmod +x "$PROJECT_DIR/healthpanel" "$PROJECT_DIR/healthpanel-snapshot"
 
-link "$PROJECT_DIR/battinfo"          "$BIN_DIR/battinfo"
-link "$PROJECT_DIR/battinfo-snapshot" "$BIN_DIR/battinfo-snapshot"
+link "$PROJECT_DIR/healthpanel"          "$BIN_DIR/healthpanel"
+link "$PROJECT_DIR/healthpanel-snapshot" "$BIN_DIR/healthpanel-snapshot"
 
-link "$PROJECT_DIR/systemd/battinfo-snapshot.service" "$UNIT_DIR/battinfo-snapshot.service"
-link "$PROJECT_DIR/systemd/battinfo-snapshot.timer"   "$UNIT_DIR/battinfo-snapshot.timer"
+link "$PROJECT_DIR/systemd/healthpanel-snapshot.service" "$UNIT_DIR/healthpanel-snapshot.service"
+link "$PROJECT_DIR/systemd/healthpanel-snapshot.timer"   "$UNIT_DIR/healthpanel-snapshot.timer"
 
 echo "Reloading systemd --user and enabling timer ..."
 systemctl --user daemon-reload
-systemctl --user enable --now battinfo-snapshot.timer
+systemctl --user enable --now healthpanel-snapshot.timer
 
 # --- Plasma 6 widget (optional, skipped on headless / non-KDE) ---
 if command -v kpackagetool6 >/dev/null 2>&1; then
@@ -55,11 +55,11 @@ fi
 
 echo
 echo "Done."
-echo "  Run:           battinfo"
-echo "  Watch:         battinfo -w"
-echo "  History:       battinfo --history"
-echo "  Manual log:    systemctl --user start battinfo-snapshot.service"
-echo "  Timer status:  systemctl --user status battinfo-snapshot.timer"
+echo "  Run:           healthpanel"
+echo "  Watch:         healthpanel -w"
+echo "  History:       healthpanel --history"
+echo "  Manual log:    systemctl --user start healthpanel-snapshot.service"
+echo "  Timer status:  systemctl --user status healthpanel-snapshot.timer"
 echo "  Plasma widget: rechts auf Desktop -> Widget hinzufügen -> 'HealthPanel'"
 echo
 case ":$PATH:" in

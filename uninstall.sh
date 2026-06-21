@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# uninstall.sh — remove HealthPanel: the Plasma widget, the battinfo CLI + its
+# uninstall.sh — remove HealthPanel: the Plasma widget, the healthpanel CLI + its
 # user timer, and the system-level SMART timer. Run as your NORMAL user (NOT with
 # sudo); the SMART part calls sudo itself. Battery history in
-# ~/.local/state/battinfo/ is left untouched.
+# ~/.local/state/healthpanel/ is left untouched.
 set -euo pipefail
 
 if [ "${EUID:-$(id -u)}" -eq 0 ]; then
@@ -14,13 +14,13 @@ fi
 BIN_DIR="$HOME/.local/bin"
 UNIT_DIR="$HOME/.config/systemd/user"
 
-echo "Removing battinfo CLI + user timer ..."
-systemctl --user disable --now battinfo-snapshot.timer 2>/dev/null || true
+echo "Removing healthpanel CLI + user timer ..."
+systemctl --user disable --now healthpanel-snapshot.timer 2>/dev/null || true
 for f in \
-    "$BIN_DIR/battinfo" \
-    "$BIN_DIR/battinfo-snapshot" \
-    "$UNIT_DIR/battinfo-snapshot.service" \
-    "$UNIT_DIR/battinfo-snapshot.timer"; do
+    "$BIN_DIR/healthpanel" \
+    "$BIN_DIR/healthpanel-snapshot" \
+    "$UNIT_DIR/healthpanel-snapshot.service" \
+    "$UNIT_DIR/healthpanel-snapshot.timer"; do
     rm -fv "$f"
 done
 systemctl --user daemon-reload || true
@@ -43,5 +43,5 @@ sudo rm -rf /var/lib/healthpanel
 
 echo
 echo "Done. HealthPanel entfernt."
-echo "  Akku-History bleibt unter ~/.local/state/battinfo/ (manuell löschen falls gewünscht)."
+echo "  Akku-History bleibt unter ~/.local/state/healthpanel/ (manuell löschen falls gewünscht)."
 echo "  Liegt das Widget noch auf dem Desktop/Panel: per Rechtsklick entfernen."

@@ -1,0 +1,11 @@
+[Unit]
+Description=healthpanel daily battery health snapshot
+Documentation=https://github.com/sunsetterphoto/HealthPanel
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/healthpanel-snapshot
+Nice=10
+
+[Install]
+WantedBy=default.target

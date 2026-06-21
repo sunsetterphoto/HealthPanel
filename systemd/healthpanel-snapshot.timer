@@ -1,11 +1,11 @@
 [Unit]
-Description=Daily battery health snapshot for battinfo
+Description=Daily battery health snapshot for healthpanel
 
 [Timer]
 OnCalendar=daily
 Persistent=true
 RandomizedDelaySec=15min
-Unit=battinfo-snapshot.service
+Unit=healthpanel-snapshot.service
 
 [Install]
 WantedBy=timers.target

@@ -52,7 +52,7 @@ cd HealthPanel
 Then add the widget: right-click the desktop or panel → *Add Widgets…* →
 **HealthPanel**.
 
-`install.sh` installs the Plasma widget, the optional `battinfo` battery CLI, and
+`install.sh` installs the Plasma widget, the `healthpanel` CLI, and
 sets up the root SMART timer. To remove everything: `./uninstall.sh`.
 
 > **Reload note:** Plasma caches widget QML in memory. After an upgrade
@@ -78,16 +78,19 @@ Right-click the widget → *Configure HealthPanel* → *General*:
   (history graph); network: Text or Sparkline
 - **Battery column shows:** per-section checkboxes
 
-## Optional CLI: `battinfo`
+## CLI: `healthpanel`
 
-A self-contained Bash tool for detailed battery info in the terminal, plus a
-`--user` systemd timer that logs one health snapshot per day to
-`~/.local/state/battinfo/history.tsv`.
+A self-contained Bash companion that prints the same data in the terminal —
+system **and** battery, in detail. A `--user` systemd timer also logs one battery
+health snapshot per day to `~/.local/state/healthpanel/history.tsv`.
 
 ```bash
-battinfo            # one-shot report
-battinfo -w         # live watch
-battinfo --history  # show logged history
+healthpanel            # full report: system + battery
+healthpanel system     # CPU / RAM / disk / network / power profile only
+healthpanel battery    # battery section only
+healthpanel temps      # all hwmon temperature sensors
+healthpanel -w         # live watch
+healthpanel --history  # logged battery history
 ```
 
 ## How it reads your hardware

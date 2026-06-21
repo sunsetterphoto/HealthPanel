@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# battinfo-snapshot — log a single battery health datapoint to TSV
+# healthpanel-snapshot — log a single battery health datapoint to TSV
 # Called by systemd --user timer (daily, Persistent=true).
 set -euo pipefail
 
-BAT_DIR="/sys/class/power_supply/BAT0"
-STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/battinfo"
+BAT_DIR="${BAT_DIR:-$(for d in /sys/class/power_supply/*; do
+    [ "$(cat "$d/type" 2>/dev/null)" = Battery ] && echo "$d" && break
+done)}"
+BAT_DIR="${BAT_DIR:-/sys/class/power_supply/BAT0}"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/healthpanel"
 HISTORY_FILE="$STATE_DIR/history.tsv"
 
 [[ -d "$BAT_DIR" ]] || { echo "no battery at $BAT_DIR" >&2; exit 1; }
