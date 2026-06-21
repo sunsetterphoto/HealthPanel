@@ -12,6 +12,13 @@ Item {
     id: card
     property var battery
 
+    // section visibility (bound to widget config; Health header stays always on)
+    property bool showCycles: true
+    property bool showCapacity: true
+    property bool showLive: true
+    property bool showSerial: true
+    property bool showChargeLimit: true
+
     Layout.preferredWidth:  Kirigami.Units.gridUnit * 18
     Layout.preferredHeight: contentLoader.active
         ? contentLoader.implicitHeight + Kirigami.Units.gridUnit * 1.5
@@ -112,68 +119,73 @@ Item {
             // --- Capacity grid ---
             GridLayout {
                 Layout.fillWidth: true
+                visible: card.showCycles || card.showCapacity
                 columns: 2
                 columnSpacing: Kirigami.Units.largeSpacing
                 rowSpacing: 2
 
-                PC3.Label { text: "Cycles"; opacity: 0.8 }
-                PC3.Label { text: card.battery.cycleCount; Layout.alignment: Qt.AlignRight }
+                PC3.Label { text: "Cycles"; opacity: 0.8; visible: card.showCycles }
+                PC3.Label { text: card.battery.cycleCount; Layout.alignment: Qt.AlignRight; visible: card.showCycles }
 
-                PC3.Label { text: "Designed"; opacity: 0.8 }
-                PC3.Label { text: card.battery.fmtWh(card.battery.energyFullDesignWh); Layout.alignment: Qt.AlignRight }
+                PC3.Label { text: "Designed"; opacity: 0.8; visible: card.showCapacity }
+                PC3.Label { text: card.battery.fmtWh(card.battery.energyFullDesignWh); Layout.alignment: Qt.AlignRight; visible: card.showCapacity }
 
-                PC3.Label { text: "Full (now)"; opacity: 0.8 }
-                PC3.Label { text: card.battery.fmtWh(card.battery.energyFullWh); Layout.alignment: Qt.AlignRight }
+                PC3.Label { text: "Full (now)"; opacity: 0.8; visible: card.showCapacity }
+                PC3.Label { text: card.battery.fmtWh(card.battery.energyFullWh); Layout.alignment: Qt.AlignRight; visible: card.showCapacity }
 
-                PC3.Label { text: "Remaining"; opacity: 0.8 }
+                PC3.Label { text: "Remaining"; opacity: 0.8; visible: card.showCapacity }
                 PC3.Label {
                     text: card.battery.fmtWh(card.battery.energyNowWh) + "  (" + card.battery.capacityPct + "%)"
-                    Layout.alignment: Qt.AlignRight
+                    Layout.alignment: Qt.AlignRight; visible: card.showCapacity
                 }
             }
 
-            Kirigami.Separator { Layout.fillWidth: true; Layout.topMargin: Kirigami.Units.smallSpacing }
+            Kirigami.Separator {
+                Layout.fillWidth: true; Layout.topMargin: Kirigami.Units.smallSpacing
+                visible: card.showLive || card.showSerial
+            }
 
             // --- Live ---
             GridLayout {
                 Layout.fillWidth: true
+                visible: card.showLive || card.showSerial
                 columns: 2
                 columnSpacing: Kirigami.Units.largeSpacing
                 rowSpacing: 2
 
-                PC3.Label { text: "Status"; opacity: 0.8 }
+                PC3.Label { text: "Status"; opacity: 0.8; visible: card.showLive }
                 PC3.Label {
                     text: card.battery.statusGlyph() + " " + (card.battery.status || "—")
-                    Layout.alignment: Qt.AlignRight
+                    Layout.alignment: Qt.AlignRight; visible: card.showLive
                 }
 
-                PC3.Label { text: "Power draw"; opacity: 0.8 }
-                PC3.Label { text: card.battery.fmtW(card.battery.powerNowW); Layout.alignment: Qt.AlignRight }
+                PC3.Label { text: "Power draw"; opacity: 0.8; visible: card.showLive }
+                PC3.Label { text: card.battery.fmtW(card.battery.powerNowW); Layout.alignment: Qt.AlignRight; visible: card.showLive }
 
-                PC3.Label { text: "Voltage"; opacity: 0.8 }
+                PC3.Label { text: "Voltage"; opacity: 0.8; visible: card.showLive }
                 PC3.Label {
                     text: card.battery.fmtV(card.battery.voltageNowV) + "  (min " + card.battery.fmtV(card.battery.voltageMinDesignV) + ")"
-                    Layout.alignment: Qt.AlignRight
+                    Layout.alignment: Qt.AlignRight; visible: card.showLive
                 }
 
-                PC3.Label { text: "Serial"; opacity: 0.8 }
-                PC3.Label { text: card.battery.serial || "n/a"; Layout.alignment: Qt.AlignRight }
+                PC3.Label { text: "Serial"; opacity: 0.8; visible: card.showSerial }
+                PC3.Label { text: card.battery.serial || "n/a"; Layout.alignment: Qt.AlignRight; visible: card.showSerial }
             }
 
             // --- Lenovo ---
             Kirigami.Separator {
                 Layout.fillWidth: true
                 Layout.topMargin: Kirigami.Units.smallSpacing
-                visible: card.battery.hasChargeThreshold
+                visible: card.battery.hasChargeThreshold && card.showChargeLimit
             }
             PC3.Label {
-                visible: card.battery.hasChargeThreshold
+                visible: card.battery.hasChargeThreshold && card.showChargeLimit
                 text: "Lenovo"
                 opacity: 0.6
                 font.pixelSize: Kirigami.Theme.smallFont.pixelSize
             }
             GridLayout {
-                visible: card.battery.hasChargeThreshold
+                visible: card.battery.hasChargeThreshold && card.showChargeLimit
                 Layout.fillWidth: true
                 columns: 2
                 columnSpacing: Kirigami.Units.largeSpacing

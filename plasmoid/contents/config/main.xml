@@ -34,5 +34,36 @@
     <entry name="showTemps" type="Bool">
       <default>true</default>
     </entry>
+
+    <!-- Anzeige-Stil pro Metrik: bar | ring | sparkline (netz: text | sparkline) -->
+    <entry name="cpuStyle" type="String">
+      <default>bar</default>
+    </entry>
+    <entry name="ramStyle" type="String">
+      <default>bar</default>
+    </entry>
+    <entry name="diskStyle" type="String">
+      <default>bar</default>
+    </entry>
+    <entry name="netStyle" type="String">
+      <default>text</default>
+    </entry>
+
+    <!-- Sichtbarkeit der Akku-Detailblöcke (Health bleibt immer sichtbar) -->
+    <entry name="showBatCycles" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="showBatCapacity" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="showBatLive" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="showBatSerial" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="showBatChargeLimit" type="Bool">
+      <default>true</default>
+    </entry>
   </group>
 </kcfg>

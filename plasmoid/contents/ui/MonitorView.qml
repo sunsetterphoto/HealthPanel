@@ -1,6 +1,6 @@
 // MonitorView.qml — full representation: system column │ separator │ battery card.
-// Section visibility comes from Plasmoid.configuration; sizing is responsive
-// (both columns fill available width, with minimums that keep all text readable).
+// Section visibility + per-metric display styles + battery-detail visibility all
+// come from Plasmoid.configuration; sizing is responsive (both columns fill width).
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
@@ -32,6 +32,10 @@ RowLayout {
         showNet:       Plasmoid.configuration.showNet
         showSmart:     Plasmoid.configuration.showSmart
         showTemps:     Plasmoid.configuration.showTemps
+        cpuStyle:      Plasmoid.configuration.cpuStyle
+        ramStyle:      Plasmoid.configuration.ramStyle
+        diskStyle:     Plasmoid.configuration.diskStyle
+        netStyle:      Plasmoid.configuration.netStyle
         onSetProfile: function(name) { view.setProfile(name) }
     }
 
@@ -46,5 +50,10 @@ RowLayout {
         Layout.fillHeight: true
         Layout.minimumWidth: Kirigami.Units.gridUnit * 13
         battery: view.battery
+        showCycles:      Plasmoid.configuration.showBatCycles
+        showCapacity:    Plasmoid.configuration.showBatCapacity
+        showLive:        Plasmoid.configuration.showBatLive
+        showSerial:      Plasmoid.configuration.showBatSerial
+        showChargeLimit: Plasmoid.configuration.showBatChargeLimit
     }
 }

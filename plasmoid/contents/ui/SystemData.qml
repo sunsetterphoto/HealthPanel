@@ -43,6 +43,20 @@ QtObject {
     property int  smartPowerOnHours: 0
     property real smartTbwTB: 0
 
+    // history ring-buffers for sparklines (newest at end)
+    readonly property int histLen: 40
+    property var cpuHist: []        // CPU % (0..100)
+    property var ramHist: []        // RAM % (0..100)
+    property var diskIoHist: []     // disk read+write MB/s (raw)
+    property var netHist: []        // net down+up MB/s (raw)
+
+    function _push(arr, v) {
+        var a = arr.slice();       // copy so the property reassignment triggers bindings
+        a.push(v);
+        if (a.length > histLen) a.shift();
+        return a;
+    }
+
     // ---- public API ----
     function applyProbe(stdout) {
         var r = Sys.parseProbe(stdout);
@@ -65,6 +79,10 @@ QtObject {
             smartPowerOnHours = r.smartPowerOnHours;
             smartTbwTB = r.smartTbwTB;
         }
+        cpuHist    = _push(cpuHist, cpuPct);
+        ramHist    = _push(ramHist, ramPct);
+        diskIoHist = _push(diskIoHist, diskReadMBps + diskWriteMBps);
+        netHist    = _push(netHist, netDownMBps + netUpMBps);
     }
 
     function applyProfile(stdout) {

@@ -6,10 +6,11 @@ import org.kde.kirigami as Kirigami
 Kirigami.FormLayout {
     id: form
 
-    // The cfg_<name>Default properties mirror the kcfg defaults — Plasma sets them
-    // on this page for the "Defaults" button and otherwise logs a warning.
+    // --- refresh ---
     property alias cfg_refreshSeconds: refreshSlider.value
     property int   cfg_refreshSecondsDefault: 2
+
+    // --- system-column section visibility (checkbox aliases) ---
     property alias cfg_showPowerMode: powerModeCheck.checked
     property bool  cfg_showPowerModeDefault: true
     property alias cfg_showCpu: cpuCheck.checked
@@ -25,15 +26,44 @@ Kirigami.FormLayout {
     property alias cfg_showTemps: tempsCheck.checked
     property bool  cfg_showTempsDefault: true
 
+    // --- per-metric styles (plain props; combos set them via onActivated) ---
+    property string cfg_cpuStyle: "bar"
+    property string cfg_cpuStyleDefault: "bar"
+    property string cfg_ramStyle: "bar"
+    property string cfg_ramStyleDefault: "bar"
+    property string cfg_diskStyle: "bar"
+    property string cfg_diskStyleDefault: "bar"
+    property string cfg_netStyle: "text"
+    property string cfg_netStyleDefault: "text"
+
+    // --- battery-column section visibility ---
+    property alias cfg_showBatCycles: batCyclesCheck.checked
+    property bool  cfg_showBatCyclesDefault: true
+    property alias cfg_showBatCapacity: batCapacityCheck.checked
+    property bool  cfg_showBatCapacityDefault: true
+    property alias cfg_showBatLive: batLiveCheck.checked
+    property bool  cfg_showBatLiveDefault: true
+    property alias cfg_showBatSerial: batSerialCheck.checked
+    property bool  cfg_showBatSerialDefault: true
+    property alias cfg_showBatChargeLimit: batChargeCheck.checked
+    property bool  cfg_showBatChargeLimitDefault: true
+
+    readonly property var graphStyles: [
+        { text: i18n("Balken"),    value: "bar" },
+        { text: i18n("Ring"),      value: "ring" },
+        { text: i18n("Sparkline"), value: "sparkline" }
+    ]
+    readonly property var netStyles: [
+        { text: i18n("Text"),      value: "text" },
+        { text: i18n("Sparkline"), value: "sparkline" }
+    ]
+
     RowLayout {
         Kirigami.FormData.label: i18n("Aktualisierungsintervall:")
         Layout.fillWidth: true
-
         QQC2.Slider {
             id: refreshSlider
-            from: 1
-            to: 30
-            stepSize: 1
+            from: 1; to: 30; stepSize: 1
             snapMode: QQC2.Slider.SnapAlways
             Layout.fillWidth: true
         }
@@ -56,4 +86,51 @@ Kirigami.FormLayout {
     QQC2.CheckBox { id: netCheck;   text: i18n("Netzwerk") }
     QQC2.CheckBox { id: smartCheck; text: i18n("SSD-SMART (Health / Stunden / TBW)") }
     QQC2.CheckBox { id: tempsCheck; text: i18n("Temperaturen (CPU / Festplatte)") }
+
+    Item { Kirigami.FormData.isSection: true }
+
+    QQC2.ComboBox {
+        id: cpuStyleBox
+        Kirigami.FormData.label: i18n("Stil — CPU:")
+        textRole: "text"; valueRole: "value"
+        model: form.graphStyles
+        onActivated: form.cfg_cpuStyle = currentValue
+        Component.onCompleted: currentIndex = indexOfValue(form.cfg_cpuStyle)
+    }
+    QQC2.ComboBox {
+        id: ramStyleBox
+        Kirigami.FormData.label: i18n("Stil — RAM:")
+        textRole: "text"; valueRole: "value"
+        model: form.graphStyles
+        onActivated: form.cfg_ramStyle = currentValue
+        Component.onCompleted: currentIndex = indexOfValue(form.cfg_ramStyle)
+    }
+    QQC2.ComboBox {
+        id: diskStyleBox
+        Kirigami.FormData.label: i18n("Stil — Festplatte:")
+        textRole: "text"; valueRole: "value"
+        model: form.graphStyles
+        onActivated: form.cfg_diskStyle = currentValue
+        Component.onCompleted: currentIndex = indexOfValue(form.cfg_diskStyle)
+    }
+    QQC2.ComboBox {
+        id: netStyleBox
+        Kirigami.FormData.label: i18n("Stil — Netzwerk:")
+        textRole: "text"; valueRole: "value"
+        model: form.netStyles
+        onActivated: form.cfg_netStyle = currentValue
+        Component.onCompleted: currentIndex = indexOfValue(form.cfg_netStyle)
+    }
+
+    Item { Kirigami.FormData.isSection: true }
+
+    QQC2.CheckBox {
+        id: batCyclesCheck
+        Kirigami.FormData.label: i18n("Akku-Spalte zeigt:")
+        text: i18n("Ladezyklen")
+    }
+    QQC2.CheckBox { id: batCapacityCheck; text: i18n("Kapazität (Designed / Full / Remaining)") }
+    QQC2.CheckBox { id: batLiveCheck;     text: i18n("Live-Werte (Status / Leistung / Spannung)") }
+    QQC2.CheckBox { id: batSerialCheck;   text: i18n("Seriennummer") }
+    QQC2.CheckBox { id: batChargeCheck;   text: i18n("Lenovo Ladeschwelle") }
 }
