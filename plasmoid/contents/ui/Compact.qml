@@ -1,5 +1,6 @@
 // Compact representation — shown in a panel or as a small desktop icon.
-// Default: battery icon (charge state) + power-mode indicator + charge %.
+// Default: a single battery icon that also encodes the power profile (leaf for
+// power-saver, plain for balanced, overlay for performance), plus the charge %.
 // Reports its size via Layout.* so the panel grants room for the label.
 import QtQuick
 import QtQuick.Layouts
@@ -40,6 +41,16 @@ MouseArea {
                 if (!compact._ok) return "battery-missing"
                 var c = compact.battery.capacityPct
                 var charging = compact.battery.status === "Charging"
+                // KDE combines charge level + power profile into one icon:
+                // battery-<000..100>-[charging-]profile-<powersave|balanced|performance>
+                if (compact._hasProfile) {
+                    var lvl = Math.max(0, Math.min(100, Math.round(c / 10) * 10))
+                    var lll = ("00" + lvl).slice(-3)
+                    var p = compact.system.powerProfile
+                    var mode = p === "performance" ? "performance"
+                             : (p === "power-saver" ? "powersave" : "balanced")
+                    return "battery-" + lll + (charging ? "-charging" : "") + "-profile-" + mode
+                }
                 if (c >= 95) return charging ? "battery-full-charging" : "battery-full"
                 if (c >= 60) return charging ? "battery-good-charging" : "battery-good"
                 if (c >= 30) return charging ? "battery-low-charging"  : "battery-low"
@@ -48,22 +59,6 @@ MouseArea {
             Layout.alignment: Qt.AlignCenter
             implicitWidth:  Kirigami.Units.iconSizes.small
             implicitHeight: Kirigami.Units.iconSizes.small
-        }
-
-        // power-mode indicator (KDE-style power-profile icon)
-        Kirigami.Icon {
-            visible: compact._hasProfile
-            source: {
-                if (!compact._hasProfile) return ""
-                var p = compact.system.powerProfile
-                if (p === "performance") return "power-profile-performance"
-                if (p === "power-saver") return "power-profile-power-saver"
-                return "power-profile-balanced"
-            }
-            Layout.alignment: Qt.AlignCenter
-            implicitWidth:  Math.round(Kirigami.Units.iconSizes.small * 0.7)
-            implicitHeight: Math.round(Kirigami.Units.iconSizes.small * 0.7)
-            opacity: 0.85
         }
 
         PC3.Label {

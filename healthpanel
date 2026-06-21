@@ -253,9 +253,19 @@ cmd_battery() { gather_battery; render_battery; printf '\n'; }
 cmd_temps()   { render_temps; printf '\n'; }
 cmd_raw()     { for f in "$BAT_DIR"/*; do [[ -f "$f" && -r "$f" ]] || continue; printf '%s=%s\n' "$(basename "$f")" "$(cat "$f" 2>/dev/null | tr '\n' ' ')"; done; }
 cmd_watch() {
-    trap 'tput cnorm 2>/dev/null || true; exit 0' INT TERM
+    # Flicker-free: render to the alternate screen, then on each tick move the
+    # cursor home and overwrite in place (clear-to-EOL per line + clear-to-end),
+    # so the terminal is never blanked and redrawn.
+    trap 'tput cnorm 2>/dev/null; tput rmcup 2>/dev/null; exit 0' INT TERM
+    tput smcup 2>/dev/null || true
     tput civis 2>/dev/null || true
-    while true; do clear; cmd_all; printf '  %s(refresh · Ctrl-C zum Beenden)%s\n' "$C_DIM" "$C_RESET"; sleep 1; done
+    local out
+    while true; do
+        out=$(cmd_all)
+        printf '\033[H%s\033[J\n  %s(live · Ctrl-C zum Beenden)%s' \
+            "${out//$'\n'/$'\033[K'$'\n'}" "$C_DIM" "$C_RESET"
+        sleep 1
+    done
 }
 cmd_history() {
     if [[ ! -s "$HISTORY_FILE" ]]; then
