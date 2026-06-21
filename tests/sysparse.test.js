@@ -78,3 +78,51 @@ test('parseCoreIds maps "cpuN id" lines in numeric order', () => {
   const ids = S.parseCoreIds('cpu0 0\ncpu1 0\ncpu2 1\ncpu3 1');
   assert.deepEqual(ids, [0, 0, 1, 1]);
 });
+
+const NETDEV = [
+  'Inter-|   Receive                                                |  Transmit',
+  ' face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets',
+  '    lo: 1000 10 0 0 0 0 0 0 1000 10 0 0 0 0 0 0',
+  ' wlp1s0: 1000000 100 0 0 0 0 0 0 200000 50 0 0 0 0 0 0',
+].join('\n');
+
+test('parseNetDev sums rx/tx bytes of all interfaces except lo', () => {
+  const n = S.parseNetDev(NETDEV);
+  assert.equal(n.rxBytes, 1000000);
+  assert.equal(n.txBytes, 200000);
+});
+
+test('rateMBps converts a byte delta over dt to MB/s, clamps resets', () => {
+  assert.ok(Math.abs(S.rateMBps(0, 1048576, 1) - 1) < 1e-9);   // 1 MiB/s
+  assert.ok(Math.abs(S.rateMBps(0, 524288, 0.5) - 1) < 1e-9);
+  assert.equal(S.rateMBps(0, 0, 0), 0);                        // dt<=0 guard
+  assert.equal(S.rateMBps(100, 50, 1), 0);                     // counter reset -> 0
+});
+
+// /proc/diskstats: major minor name reads rmerged sectorsRead time writes wmerged sectorsWritten ...
+const DISK1 = '259 0 nvme0n1 100 0 2048 0 50 0 1024 0 0 0 0\n259 7 nvme0n1p7 90 0 2000 0 40 0 1000 0 0 0 0';
+const DISK2 = '259 0 nvme0n1 110 0 4096 0 60 0 3072 0 0 0 0\n259 7 nvme0n1p7 95 0 3000 0 45 0 2000 0 0 0 0';
+
+test('parseDiskstats reads sectorsRead/Written for a whole-disk device', () => {
+  const d = S.parseDiskstats(DISK1, 'nvme0n1');
+  assert.equal(d.readSectors, 2048);
+  assert.equal(d.writeSectors, 1024);
+});
+
+test('sectorsRateMBps converts sector deltas (x512) to MB/s', () => {
+  // read: (4096-2048)*512 = 1048576 bytes over 0.5s -> 2 MB/s
+  assert.ok(Math.abs(S.sectorsRateMBps(2048, 4096, 0.5) - 2) < 1e-9);
+});
+
+test('deviceBase strips partition suffix', () => {
+  assert.equal(S.deviceBase('/dev/nvme0n1p7'), 'nvme0n1');
+  assert.equal(S.deviceBase('/dev/sda1'), 'sda');
+  assert.equal(S.deviceBase('/dev/mmcblk0p2'), 'mmcblk0');
+});
+
+test('parseDfLine reads used/size bytes from df -B1 output', () => {
+  const r = S.parseDfLine('/dev/nvme0n1p7 831134564352 2088000000000');
+  assert.equal(r.usedBytes, 831134564352);
+  assert.equal(r.sizeBytes, 2088000000000);
+  assert.equal(r.source, '/dev/nvme0n1p7');
+});
