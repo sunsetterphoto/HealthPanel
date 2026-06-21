@@ -1,11 +1,11 @@
 # HealthPanel
 
-A KDE Plasma 6 widget that turns the battery applet into a compact **system
-health monitor**: a live left column (power profile, CPU, RAM, disk, network,
-temperatures, SSD SMART) beside a detailed battery card — in one tidy popup.
+A KDE Plasma 6 widget that puts your machine's vital signs in one place: a live
+left column — power profile, CPU, RAM, disk, network, temperatures and SSD SMART —
+beside a detailed battery panel, in a single tidy popup.
 
-> Built and tested on Wayland with Plasma 6 (Qt 6.11) on Fedora, but written to
-> work on any Linux laptop/desktop running Plasma 6.
+> Developed and tested on Wayland with Plasma 6 (Qt 6.11); designed to run on any
+> Linux laptop or desktop running Plasma 6.
 
 ![HealthPanel](screenshots/healthpanel.png)
 
@@ -90,15 +90,30 @@ battinfo -w         # live watch
 battinfo --history  # show logged history
 ```
 
+## How it reads your hardware
+
+HealthPanel doesn't scan for arbitrary sensors — it reads from fixed, well-defined
+sources:
+
+- **CPU / RAM / disk / network** come straight from the kernel: `/proc/stat`,
+  `/proc/meminfo`, `df` on `/`, `/proc/diskstats` and `/proc/net/dev`. These are
+  universal and unambiguous.
+- **Temperatures** are matched **by sensor name** in `hwmon`, not picked at
+  random: the CPU temperature only from `k10temp` / `coretemp` / `zenpower` /
+  `cpu_thermal` / `soc_thermal`, the disk temperature only from `nvme`. An
+  unrelated chip's sensor is never shown as the CPU or disk temperature.
+- The **battery** is the first `/sys/class/power_supply` device of type
+  *Battery*; the **disk** for SMART is the whole disk backing `/`.
+
+If an expected source isn't present, the field is simply **hidden — never
+guessed**.
+
 ## Hardware notes
 
-HealthPanel was developed and tested on a **Lenovo ThinkPad Z13 Gen 2**. It reads
-whatever sensors your machine exposes and **hides anything that isn't available** —
-so what you actually see depends on your hardware and firmware, not on a fixed
-feature set.
-
-Two sensors happen to be unreachable from Linux *on the Z13 Gen 2 specifically* —
-**your laptop may well expose them:**
+HealthPanel was developed and tested on a **Lenovo ThinkPad Z13 Gen 2**; what you
+actually see depends on what your hardware and firmware expose. Two sensors happen
+to be unreachable from Linux *on the Z13 Gen 2 specifically* — **your laptop may
+well expose them:**
 
 - **RAM temperature** — on the Z13 Gen 2 the embedded controller holds the DDR5
   SPD i2c bus exclusively, so the `spd5118` driver can't bind. Many other boards
