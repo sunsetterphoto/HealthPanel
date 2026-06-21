@@ -88,6 +88,14 @@
       <default>true</default>
     </entry>
 
+    <!-- Whole-column master toggles -->
+    <entry name="showSystemColumn" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="showBatteryColumn" type="Bool">
+      <default>true</default>
+    </entry>
+
     <!-- Control column (right): quick settings -->
     <entry name="showControls" type="Bool">
       <default>true</default>

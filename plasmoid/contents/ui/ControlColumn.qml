@@ -21,6 +21,8 @@ ColumnLayout {
     signal setVolume(real frac)
     signal toggleMute()
     signal setInhibit(bool on)
+    signal openSystemSettings()
+    signal openSystemMonitor()
 
     readonly property bool _ok: control !== null && control !== undefined
     spacing: Kirigami.Units.smallSpacing
@@ -161,4 +163,19 @@ ColumnLayout {
     }
 
     Item { Layout.fillHeight: true }
+
+    // ---- jump-offs to KDE tools ----
+    Kirigami.Separator { Layout.fillWidth: true; opacity: 0.6 }
+    QQC2.Button {
+        Layout.fillWidth: true
+        icon.name: "configure"
+        text: i18n("Systemeinstellungen")
+        onClicked: col.openSystemSettings()
+    }
+    QQC2.Button {
+        Layout.fillWidth: true
+        icon.name: "org.kde.plasma-systemmonitor"
+        text: i18n("Systemmonitor")
+        onClicked: col.openSystemMonitor()
+    }
 }

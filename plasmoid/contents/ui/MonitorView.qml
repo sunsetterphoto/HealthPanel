@@ -21,12 +21,17 @@ Item {
     signal setVolume(real frac)
     signal toggleMute()
     signal setInhibit(bool on)
+    signal openSystemSettings()
+    signal openSystemMonitor()
 
+    readonly property bool _showSystem: Plasmoid.configuration.showSystemColumn
+    readonly property bool _showBattery: Plasmoid.configuration.showBatteryColumn
     readonly property bool _showControls: Plasmoid.configuration.showControls
+    readonly property int _cols: (_showSystem ? 1 : 0) + (_showBattery ? 1 : 0) + (_showControls ? 1 : 0)
 
-    Layout.minimumWidth: Kirigami.Units.gridUnit * (_showControls ? 40 : 28)
+    Layout.minimumWidth: Kirigami.Units.gridUnit * Math.max(13, _cols * 13)
     Layout.minimumHeight: Kirigami.Units.gridUnit * 17
-    Layout.preferredWidth: Kirigami.Units.gridUnit * (_showControls ? 44 : 31)
+    Layout.preferredWidth: Kirigami.Units.gridUnit * Math.max(15, _cols * 15)
     Layout.preferredHeight: Kirigami.Units.gridUnit * 20
 
     RowLayout {
@@ -38,6 +43,7 @@ Item {
             Layout.fillHeight: true
             Layout.minimumWidth: Kirigami.Units.gridUnit * 13
             Layout.margins: Kirigami.Units.gridUnit * 0.75
+            visible: view._showSystem
             system: view.system
             showPowerMode: Plasmoid.configuration.showPowerMode
             showCpu:       Plasmoid.configuration.showCpu
@@ -61,12 +67,14 @@ Item {
             Layout.fillHeight: true
             Layout.topMargin: Kirigami.Units.gridUnit
             Layout.bottomMargin: Kirigami.Units.gridUnit
+            visible: view._showSystem && (view._showBattery || view._showControls)
         }
 
         BatteryCard {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.minimumWidth: Kirigami.Units.gridUnit * 13
+            visible: view._showBattery
             battery: view.battery
             showCycles:      Plasmoid.configuration.showBatCycles
             showCapacity:    Plasmoid.configuration.showBatCapacity
@@ -80,7 +88,7 @@ Item {
             Layout.fillHeight: true
             Layout.topMargin: Kirigami.Units.gridUnit
             Layout.bottomMargin: Kirigami.Units.gridUnit
-            visible: view._showControls
+            visible: view._showBattery && view._showControls
         }
 
         ControlColumn {
@@ -99,6 +107,8 @@ Item {
             onSetVolume: function(frac) { view.setVolume(frac) }
             onToggleMute: view.toggleMute()
             onSetInhibit: function(on) { view.setInhibit(on) }
+            onOpenSystemSettings: view.openSystemSettings()
+            onOpenSystemMonitor: view.openSystemMonitor()
         }
     }
 

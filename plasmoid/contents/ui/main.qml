@@ -179,6 +179,15 @@ PlasmoidItem {
         }
     }
 
+    // fire-and-forget launcher for external apps (system settings / monitor)
+    P5S.DataSource {
+        id: launcher
+        engine: "executable"
+        connectedSources: []
+        onNewData: function(source, data) { disconnectSource(source) }
+    }
+    function launch(cmd) { launcher.connectSource(cmd) }
+
     Timer {
         id: probeTimer
         interval: Plasmoid.configuration.refreshSeconds * 1000
@@ -221,6 +230,8 @@ PlasmoidItem {
         onSetVolume: function(frac) { root.setVolume(frac) }
         onToggleMute: root.toggleMute()
         onSetInhibit: function(on) { root.setInhibit(on) }
+        onOpenSystemSettings: root.launch("systemsettings")
+        onOpenSystemMonitor: root.launch("plasma-systemmonitor")
     }
 
     Plasmoid.icon: {

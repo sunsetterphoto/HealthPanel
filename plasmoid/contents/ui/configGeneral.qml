@@ -58,6 +58,10 @@ Kirigami.FormLayout {
     property alias cfg_showBatTime: batTimeCheck.checked
     property bool  cfg_showBatTimeDefault: true
 
+    property alias cfg_showSystemColumn: systemColCheck.checked
+    property bool  cfg_showSystemColumnDefault: true
+    property alias cfg_showBatteryColumn: batteryColCheck.checked
+    property bool  cfg_showBatteryColumnDefault: true
     property alias cfg_showControls: controlsCheck.checked
     property bool  cfg_showControlsDefault: true
     property alias cfg_showInhibit: inhibitCheck.checked
@@ -97,8 +101,13 @@ Kirigami.FormLayout {
     Item { Kirigami.FormData.isSection: true }
 
     QQC2.CheckBox {
+        id: systemColCheck
+        Kirigami.FormData.label: i18n("System-Spalte (links):")
+        text: i18n("Spalte anzeigen")
+    }
+    QQC2.CheckBox {
         id: powerModeCheck
-        Kirigami.FormData.label: i18n("System-Spalte zeigt:")
+        Kirigami.FormData.label: i18n("… zeigt:")
         text: i18n("Power-Modus")
     }
     QQC2.CheckBox { id: cpuCheck;   text: i18n("CPU + Kerne") }
@@ -168,8 +177,13 @@ Kirigami.FormLayout {
     Item { Kirigami.FormData.isSection: true }
 
     QQC2.CheckBox {
+        id: batteryColCheck
+        Kirigami.FormData.label: i18n("Akku-Spalte (Mitte):")
+        text: i18n("Spalte anzeigen")
+    }
+    QQC2.CheckBox {
         id: batCyclesCheck
-        Kirigami.FormData.label: i18n("Akku-Spalte zeigt:")
+        Kirigami.FormData.label: i18n("… zeigt:")
         text: i18n("Ladezyklen")
     }
     QQC2.CheckBox { id: batCapacityCheck; text: i18n("Kapazität (Designed / Full / Remaining)") }
