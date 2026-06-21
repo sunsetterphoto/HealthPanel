@@ -208,7 +208,7 @@ Item {
 
                 PC3.Label { text: card.tr("Voltage"); opacity: 0.8; visible: card.showLive }
                 PC3.Label {
-                    text: card.battery.fmtV(card.battery.voltageNowV) + "  (card.tr("design min") + " " + card.battery.fmtV(card.battery.voltageMinDesignV) + ""
+                    text: card.battery.fmtV(card.battery.voltageNowV) + "  (" + card.tr("design min") + " " + card.battery.fmtV(card.battery.voltageMinDesignV) + ")"
                     Layout.alignment: Qt.AlignRight; visible: card.showLive
                 }
 
