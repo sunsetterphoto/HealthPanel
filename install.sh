@@ -1,7 +1,17 @@
 #!/usr/bin/env bash
 # install.sh — set up stable symlinks in ~/.local/bin and enable the systemd timer.
 # Idempotent: safe to re-run after `git pull`.
+#
+# Run as your NORMAL user (NOT with sudo): the user-level parts go into your
+# own ~/.local and ~/.config, and the system-level SMART timer block calls
+# `sudo` itself only where it needs root.
 set -euo pipefail
+
+if [ "${EUID:-$(id -u)}" -eq 0 ]; then
+    echo "Bitte OHNE sudo ausführen: ./install.sh" >&2
+    echo "Die User-Teile gehören in dein Home; der SMART-Block ruft sudo selbst auf." >&2
+    exit 1
+fi
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN_DIR="$HOME/.local/bin"
@@ -58,11 +68,21 @@ case ":$PATH:" in
 esac
 
 # ---- system-level SMART cache (needs root) ----
+# NOTE: system units are COPIED (not symlinked) into /etc and /usr/local/bin.
+# On SELinux-enforcing systems (Fedora) systemd refuses to load a unit symlinked
+# into a user home (user_home_t context). restorecon then sets the correct
+# contexts (systemd_unit_file_t / bin_t). Re-run this after changing SMART files.
 echo "Richte SMART-Timer ein (sudo erforderlich)…"
 sudo install -d -m 755 /var/lib/battinfo
-sudo ln -sf "$PROJECT_DIR/battinfo-smart" /usr/local/bin/battinfo-smart
-sudo ln -sf "$PROJECT_DIR/systemd/battinfo-smart.service" /etc/systemd/system/battinfo-smart.service
-sudo ln -sf "$PROJECT_DIR/systemd/battinfo-smart.timer"   /etc/systemd/system/battinfo-smart.timer
+sudo install -m 755 "$PROJECT_DIR/battinfo-smart" /usr/local/bin/battinfo-smart
+sudo install -m 644 "$PROJECT_DIR/systemd/battinfo-smart.service" /etc/systemd/system/battinfo-smart.service
+sudo install -m 644 "$PROJECT_DIR/systemd/battinfo-smart.timer"   /etc/systemd/system/battinfo-smart.timer
+if command -v restorecon >/dev/null 2>&1; then
+    sudo restorecon -F /usr/local/bin/battinfo-smart \
+        /etc/systemd/system/battinfo-smart.service \
+        /etc/systemd/system/battinfo-smart.timer
+fi
 sudo systemctl daemon-reload
 sudo systemctl enable --now battinfo-smart.timer
 sudo /usr/local/bin/battinfo-smart || true   # initial fill
+echo "  SMART-Cache: /var/lib/battinfo/smart.json"
