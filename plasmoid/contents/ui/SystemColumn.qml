@@ -1,0 +1,184 @@
+// SystemColumn.qml — left column of the monitor: power-mode + CPU/RAM/disk/net.
+// Bars match BatteryCard's health-bar idiom. Emits setProfile on switch clicks.
+pragma ComponentBehavior: Bound
+import QtQuick
+import QtQuick.Layouts
+import QtQuick.Controls as QQC2
+import org.kde.kirigami as Kirigami
+import org.kde.plasma.components as PC3
+
+ColumnLayout {
+    id: col
+    property var system
+    signal setProfile(string name)
+
+    readonly property bool _ok: system !== null && system !== undefined && system.valid === true
+    spacing: Kirigami.Units.smallSpacing
+
+    component Bar: Rectangle {
+        property real fraction: 0
+        property color fill: "#3daee9"
+        Layout.fillWidth: true
+        Layout.preferredHeight: 5
+        radius: 3
+        color: Qt.rgba(1, 1, 1, 0.09)
+        Rectangle {
+            width: parent.width * Math.max(0, Math.min(1, parent.fraction))
+            height: parent.height; radius: 3; color: parent.fill
+            Behavior on width { NumberAnimation { duration: 350 } }
+        }
+    }
+    component MLabel: PC3.Label {
+        font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+        opacity: 0.62
+    }
+
+    // ---- Power-Mode ----
+    MLabel { text: "Power-Mode" }
+    QQC2.ButtonGroup { id: pmGroup }
+    RowLayout {
+        Layout.fillWidth: true
+        visible: col._ok && col.system.hasPowerProfile
+        spacing: 2
+        Repeater {
+            model: [
+                { id: "performance", label: "Leistung" },
+                { id: "balanced",    label: "Ausgewogen" },
+                { id: "power-saver", label: "Sparen" }
+            ]
+            delegate: QQC2.Button {
+                required property var modelData
+                Layout.fillWidth: true
+                flat: true
+                checkable: true
+                QQC2.ButtonGroup.group: pmGroup
+                checked: col._ok && col.system.powerProfile === modelData.id
+                text: modelData.label
+                font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                onClicked: col.setProfile(modelData.id)
+            }
+        }
+    }
+
+    Kirigami.Separator { Layout.fillWidth: true; Layout.topMargin: 2; Layout.bottomMargin: 2 }
+
+    // ---- CPU + per-core + temp ----
+    RowLayout {
+        Layout.fillWidth: true
+        RowLayout {
+            spacing: Kirigami.Units.smallSpacing
+            MLabel { text: "CPU" }
+            PC3.Label {
+                visible: col._ok && col.system.hasCpuTemp
+                text: col._ok ? col.system.fmtTemp(col.system.cpuTempC) : ""
+                opacity: 0.5
+                font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+            }
+        }
+        Item { Layout.fillWidth: true }
+        Row {
+            spacing: 2
+            Repeater {
+                model: col._ok ? col.system.coreLoads : []
+                delegate: Rectangle {
+                    required property var modelData
+                    width: 3; height: 15; radius: 1
+                    color: Qt.rgba(1, 1, 1, 0.12)
+                    Rectangle {
+                        width: parent.width; radius: 1; color: "#3daee9"; opacity: 0.85
+                        height: parent.height * Math.max(0.04, Math.min(1, parent.modelData / 100))
+                        anchors.bottom: parent.bottom
+                    }
+                }
+            }
+        }
+        PC3.Label {
+            leftPadding: Kirigami.Units.smallSpacing
+            text: col._ok ? col.system.fmtPct(col.system.cpuPct) : "—"
+            font.bold: true; font.pixelSize: Kirigami.Theme.defaultFont.pixelSize
+        }
+    }
+    Bar { fraction: col._ok ? col.system.cpuPct / 100 : 0; fill: "#3daee9" }
+
+    // ---- RAM + swap ----
+    RowLayout {
+        Layout.fillWidth: true
+        MLabel { text: "RAM" }
+        Item { Layout.fillWidth: true }
+        PC3.Label { text: col._ok ? col.system.fmtPct(col.system.ramPct) : "—"; font.bold: true }
+    }
+    PC3.Label {
+        text: col._ok ? col.system.fmtGB(col.system.ramUsedGB) + " / " + col.system.fmtGB(col.system.ramTotalGB) : ""
+        opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+    }
+    Bar { fraction: col._ok ? col.system.ramPct / 100 : 0; fill: "#9b6dff" }
+    PC3.Label {
+        visible: col._ok && col.system.hasSwap
+        text: col._ok ? "Swap  " + col.system.fmtGB(col.system.swapUsedGB) + " / " + col.system.fmtGB(col.system.swapTotalGB) + "  " + col.system.fmtPct(col.system.swapPct) : ""
+        opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+        Layout.topMargin: 4
+    }
+    Bar {
+        visible: col._ok && col.system.hasSwap
+        Layout.preferredHeight: 3
+        fraction: col._ok ? col.system.swapPct / 100 : 0; fill: "#7d5bbe"
+    }
+
+    // ---- Disk + temp + SMART ----
+    RowLayout {
+        Layout.fillWidth: true
+        Layout.topMargin: 4
+        MLabel { text: "DISK" }
+        PC3.Label {
+            leftPadding: Kirigami.Units.smallSpacing
+            text: col._ok ? "↓" + col.system.fmtRate(col.system.diskReadMBps) + " ↑" + col.system.fmtRate(col.system.diskWriteMBps) : ""
+            opacity: 0.45; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+        }
+        PC3.Label {
+            visible: col._ok && col.system.hasDiskTemp
+            text: col._ok ? col.system.fmtTemp(col.system.diskTempC) : ""
+            opacity: 0.5; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+        }
+        Item { Layout.fillWidth: true }
+        PC3.Label { text: col._ok ? col.system.fmtPct(col.system.diskPct) : "—"; font.bold: true }
+    }
+    PC3.Label {
+        text: col._ok ? col.system.fmtGB(col.system.diskUsedGB) + " / " + col.system.fmtGB(col.system.diskTotalGB) : ""
+        opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+    }
+    Bar { fraction: col._ok ? col.system.diskPct / 100 : 0; fill: "#f1c40f" }
+    RowLayout {
+        Layout.fillWidth: true
+        visible: col._ok && col.system.smartValid
+        spacing: Kirigami.Units.smallSpacing
+        PC3.Label {
+            text: col._ok ? col.system.fmtPct(col.system.smartHealthPct) : ""
+            color: "#2ecc71"; font.bold: true
+            font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+        }
+        PC3.Label { text: "Health"; opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
+        PC3.Label { text: "·"; opacity: 0.3; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
+        PC3.Label { text: col._ok ? col.system.fmtHours(col.system.smartPowerOnHours) : ""; opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
+        PC3.Label { text: "·"; opacity: 0.3; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
+        PC3.Label { text: col._ok ? col.system.fmtTbw(col.system.smartTbwTB) : ""; opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
+        Item { Layout.fillWidth: true }
+    }
+
+    // ---- Netz ----
+    MLabel { text: "NETZ"; Layout.topMargin: 4 }
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Kirigami.Units.largeSpacing
+        ColumnLayout {
+            spacing: 0
+            PC3.Label { text: col._ok ? "↓ " + col.system.fmtRate(col.system.netDownMBps) : "—"; font.bold: true; font.pixelSize: Kirigami.Theme.defaultFont.pixelSize }
+            PC3.Label { text: "Down"; opacity: 0.5; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
+        }
+        ColumnLayout {
+            spacing: 0
+            PC3.Label { text: col._ok ? "↑ " + col.system.fmtRate(col.system.netUpMBps) : "—"; font.bold: true; font.pixelSize: Kirigami.Theme.defaultFont.pixelSize }
+            PC3.Label { text: "Up"; opacity: 0.5; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
+        }
+    }
+    Item { Layout.fillHeight: true }
+}
