@@ -56,3 +56,13 @@ case ":$PATH:" in
     *":$BIN_DIR:"*) ;;
     *) echo "WARNUNG: $BIN_DIR liegt nicht in \$PATH. Shell-Rc anpassen." ;;
 esac
+
+# ---- system-level SMART cache (needs root) ----
+echo "Richte SMART-Timer ein (sudo erforderlich)…"
+sudo install -d -m 755 /var/lib/battinfo
+sudo ln -sf "$PROJECT_DIR/battinfo-smart" /usr/local/bin/battinfo-smart
+sudo ln -sf "$PROJECT_DIR/systemd/battinfo-smart.service" /etc/systemd/system/battinfo-smart.service
+sudo ln -sf "$PROJECT_DIR/systemd/battinfo-smart.timer"   /etc/systemd/system/battinfo-smart.timer
+sudo systemctl daemon-reload
+sudo systemctl enable --now battinfo-smart.timer
+sudo /usr/local/bin/battinfo-smart || true   # initial fill

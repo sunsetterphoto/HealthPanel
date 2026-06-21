@@ -31,5 +31,13 @@ if command -v kpackagetool6 >/dev/null 2>&1; then
 fi
 
 echo
-echo "Done. History bleibt unter ~/.local/state/battinfo/ (manuell l\xc3\xb6schen falls gew\xc3\xbcnscht)."
+echo "Done. History bleibt unter ~/.local/state/battinfo/ (manuell löschen falls gewünscht)."
 echo "Falls das Widget noch auf dem Desktop liegt: per Rechtsklick entfernen."
+
+# ---- system-level SMART cache ----
+sudo systemctl disable --now battinfo-smart.timer 2>/dev/null || true
+sudo rm -f /etc/systemd/system/battinfo-smart.service /etc/systemd/system/battinfo-smart.timer
+sudo rm -f /usr/local/bin/battinfo-smart
+sudo systemctl daemon-reload
+# /var/lib/battinfo/smart.json bleibt optional erhalten; bei Bedarf:
+# sudo rm -rf /var/lib/battinfo
