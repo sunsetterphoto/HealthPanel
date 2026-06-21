@@ -169,18 +169,18 @@ Item {
                 rowSpacing: 2
 
                 PC3.Label { text: card.tr("Cycles"); opacity: 0.8; visible: card.showCycles }
-                PC3.Label { text: card.battery.cycleCount; Layout.alignment: Qt.AlignRight; visible: card.showCycles }
+                PC3.Label { text: card.battery.cycleCount; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight; visible: card.showCycles }
 
                 PC3.Label { text: card.tr("Designed"); opacity: 0.8; visible: card.showCapacity }
-                PC3.Label { text: card.battery.fmtWh(card.battery.energyFullDesignWh); Layout.alignment: Qt.AlignRight; visible: card.showCapacity }
+                PC3.Label { text: card.battery.fmtWh(card.battery.energyFullDesignWh); Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight; visible: card.showCapacity }
 
                 PC3.Label { text: card.tr("Full (now)"); opacity: 0.8; visible: card.showCapacity }
-                PC3.Label { text: card.battery.fmtWh(card.battery.energyFullWh); Layout.alignment: Qt.AlignRight; visible: card.showCapacity }
+                PC3.Label { text: card.battery.fmtWh(card.battery.energyFullWh); Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight; visible: card.showCapacity }
 
                 PC3.Label { text: card.tr("Remaining"); opacity: 0.8; visible: card.showCapacity }
                 PC3.Label {
                     text: card.battery.fmtWh(card.battery.energyNowWh) + "  (" + card.battery.capacityPct + "%)"
-                    Layout.alignment: Qt.AlignRight; visible: card.showCapacity
+                    Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight; visible: card.showCapacity
                 }
             }
 
@@ -200,20 +200,20 @@ Item {
                 PC3.Label { text: card.tr("Status"); opacity: 0.8; visible: card.showLive }
                 PC3.Label {
                     text: card.battery.statusGlyph() + " " + (card.battery.status || "—")
-                    Layout.alignment: Qt.AlignRight; visible: card.showLive
+                    Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight; visible: card.showLive
                 }
 
                 PC3.Label { text: card.tr("Power draw"); opacity: 0.8; visible: card.showLive }
-                PC3.Label { text: card.battery.fmtW(card.battery.powerNowW); Layout.alignment: Qt.AlignRight; visible: card.showLive }
+                PC3.Label { text: card.battery.fmtW(card.battery.powerNowW); Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight; visible: card.showLive }
 
                 PC3.Label { text: card.tr("Voltage"); opacity: 0.8; visible: card.showLive }
                 PC3.Label {
                     text: card.battery.fmtV(card.battery.voltageNowV) + "  (" + card.tr("design min") + " " + card.battery.fmtV(card.battery.voltageMinDesignV) + ")"
-                    Layout.alignment: Qt.AlignRight; visible: card.showLive
+                    Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight; visible: card.showLive
                 }
 
                 PC3.Label { text: card.tr("Serial"); opacity: 0.8; visible: card.showSerial }
-                PC3.Label { text: card.battery.serial || "n/a"; Layout.alignment: Qt.AlignRight; visible: card.showSerial }
+                PC3.Label { text: card.battery.serial || "n/a"; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight; visible: card.showSerial }
             }
 
             // --- Lenovo ---
@@ -238,11 +238,11 @@ Item {
                 PC3.Label { text: card.tr("Charge limit"); opacity: 0.8 }
                 PC3.Label {
                     text: card.battery.chargeStart + "% – " + card.battery.chargeEnd + "%"
-                    Layout.alignment: Qt.AlignRight
+                    Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight
                 }
 
                 PC3.Label { text: card.tr("Charge mode"); opacity: 0.8 }
-                PC3.Label { text: card.battery.chargeBehaviour || "auto"; Layout.alignment: Qt.AlignRight }
+                PC3.Label { text: card.battery.chargeBehaviour || "auto"; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight }
             }
 
             Item { Layout.fillHeight: true }

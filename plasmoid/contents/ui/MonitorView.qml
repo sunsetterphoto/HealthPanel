@@ -33,9 +33,25 @@ Item {
     readonly property bool _showControls: Plasmoid.configuration.showControls
     readonly property int _cols: (_showSystem ? 1 : 0) + (_showBattery ? 1 : 0) + (_showControls ? 1 : 0)
 
-    Layout.minimumWidth: Kirigami.Units.gridUnit * Math.max(13, _cols * 13)
+    // Per-column minimum widths (grid units). The widget's resize floor is the sum of
+    // the *visible* columns plus the gap a separator+spacing eats between each pair, so
+    // the minimum always fits the real content and columns can never be squeezed into
+    // one another. Keep these in sync with the per-column Layout.minimumWidth values on
+    // the column items below.
+    readonly property real _sysMinGu: 13
+    readonly property real _batMinGu: 13
+    readonly property real _ctlMinGu: 11
+    readonly property real _gapGu: 2.5   // largeSpacing + separator + largeSpacing per column boundary
+
+    readonly property real _contentMinGu:
+        (_showSystem ? _sysMinGu : 0) +
+        (_showBattery ? _batMinGu : 0) +
+        (_showControls ? _ctlMinGu : 0) +
+        Math.max(0, _cols - 1) * _gapGu
+
+    Layout.minimumWidth: Kirigami.Units.gridUnit * Math.max(_ctlMinGu, _contentMinGu)
     Layout.minimumHeight: Kirigami.Units.gridUnit * 17
-    Layout.preferredWidth: Kirigami.Units.gridUnit * Math.max(15, _cols * 15)
+    Layout.preferredWidth: Kirigami.Units.gridUnit * Math.max(15, _contentMinGu + _cols * 2)
     Layout.preferredHeight: Kirigami.Units.gridUnit * 20
 
     RowLayout {
@@ -47,6 +63,7 @@ Item {
             Layout.fillHeight: true
             Layout.minimumWidth: Kirigami.Units.gridUnit * 13
             Layout.margins: Kirigami.Units.gridUnit * 0.75
+            clip: true
             visible: view._showSystem
             lang: view.lang
             system: view.system
@@ -79,6 +96,7 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.minimumWidth: Kirigami.Units.gridUnit * 13
+            clip: true
             visible: view._showBattery
             lang: view.lang
             battery: view.battery
@@ -102,6 +120,7 @@ Item {
             Layout.fillHeight: true
             Layout.minimumWidth: Kirigami.Units.gridUnit * 11
             Layout.margins: Kirigami.Units.gridUnit * 0.75
+            clip: true
             visible: view._showControls
             lang: view.lang
             control: view.control
