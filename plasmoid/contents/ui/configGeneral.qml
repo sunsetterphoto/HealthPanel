@@ -49,6 +49,8 @@ Kirigami.FormLayout {
     property bool  cfg_showBatSerialDefault: false
     property alias cfg_showBatChargeLimit: batChargeCheck.checked
     property bool  cfg_showBatChargeLimitDefault: true
+    property alias cfg_showBatTime: batTimeCheck.checked
+    property bool  cfg_showBatTimeDefault: true
 
     readonly property var graphStyles: [
         { text: i18n("Balken"),    value: "bar" },
@@ -139,5 +141,6 @@ Kirigami.FormLayout {
     QQC2.CheckBox { id: batCapacityCheck; text: i18n("Kapazität (Designed / Full / Remaining)") }
     QQC2.CheckBox { id: batLiveCheck;     text: i18n("Live-Werte (Status / Leistung / Spannung)") }
     QQC2.CheckBox { id: batSerialCheck;   text: i18n("Seriennummer") }
+    QQC2.CheckBox { id: batTimeCheck;     text: i18n("Geschätzte Restlaufzeit (Stunden)") }
     QQC2.CheckBox { id: batChargeCheck;   text: i18n("Lenovo Ladeschwelle") }
 }

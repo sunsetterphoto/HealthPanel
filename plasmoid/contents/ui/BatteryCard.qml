@@ -18,6 +18,7 @@ Item {
     property bool showLive: true
     property bool showSerial: true
     property bool showChargeLimit: true
+    property bool showTime: true        // show estimated remaining time in hours
 
     Layout.preferredWidth:  Kirigami.Units.gridUnit * 18
     Layout.preferredHeight: contentLoader.active
@@ -83,7 +84,47 @@ Item {
 
             Kirigami.Separator { Layout.fillWidth: true; Layout.topMargin: Kirigami.Units.smallSpacing }
 
-            // --- Health (the headline) ---
+            // --- Remaining charge + time (the dominant info) ---
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 2
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    PC3.Label { text: "Ladung"; opacity: 0.8 }
+                    Item { Layout.fillWidth: true }
+                    PC3.Label {
+                        visible: card.showTime && card.battery.hasTimeRemaining
+                        text: card.battery.fmtDuration(card.battery.timeRemainingHours) + " " + card.battery.timeLabel()
+                        opacity: 0.7
+                        font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                    }
+                    PC3.Label {
+                        leftPadding: Kirigami.Units.smallSpacing
+                        text: card.battery.capacityPct + "%"
+                        color: card.battery.chargeColor()
+                        font.bold: true
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 6
+                    radius: 3
+                    color: Qt.rgba(1, 1, 1, 0.08)
+                    Rectangle {
+                        width: parent.width * Math.max(0, Math.min(1, card.battery.capacityPct / 100))
+                        height: parent.height
+                        radius: 3
+                        color: card.battery.chargeColor()
+                        Behavior on width { NumberAnimation { duration: 400 } }
+                    }
+                }
+            }
+
+            Kirigami.Separator { Layout.fillWidth: true; Layout.topMargin: Kirigami.Units.smallSpacing }
+
+            // --- Health ---
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 2

@@ -75,5 +75,8 @@
     <entry name="showBatChargeLimit" type="Bool">
       <default>true</default>
     </entry>
+    <entry name="showBatTime" type="Bool">
+      <default>true</default>
+    </entry>
   </group>
 </kcfg>

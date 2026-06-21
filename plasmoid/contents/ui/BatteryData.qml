@@ -129,4 +129,30 @@ QtObject {
         if (healthPct >= 75) return "#f1c40f"
         return "#e74c3c"
     }
+    function chargeColor() {
+        if (status === "Charging") return "#3daee9"
+        if (capacityPct >= 50) return "#2ecc71"
+        if (capacityPct >= 20) return "#f1c40f"
+        return "#e74c3c"
+    }
+
+    // Estimated time to empty (discharging) or to full (charging), in hours,
+    // from energy_now / power_now. 0 when idle/full or power unknown.
+    readonly property real timeRemainingHours: {
+        if (powerNowW <= 0) return 0
+        if (status === "Discharging") return energyNowWh / powerNowW
+        if (status === "Charging") return Math.max(0, (energyFullWh - energyNowWh) / powerNowW)
+        return 0
+    }
+    readonly property bool hasTimeRemaining: timeRemainingHours > 0
+    function fmtDuration(h) {
+        if (h <= 0) return ""
+        var total = Math.round(h * 60)
+        var hh = Math.floor(total / 60), mm = total % 60
+        return hh + "h " + (mm < 10 ? "0" : "") + mm + "m"
+    }
+    // label for the remaining estimate ("verbleibend" / "bis voll")
+    function timeLabel() {
+        return status === "Charging" ? "bis voll" : "verbleibend"
+    }
 }

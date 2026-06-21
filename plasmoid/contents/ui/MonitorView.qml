@@ -63,6 +63,7 @@ Item {
             showLive:        Plasmoid.configuration.showBatLive
             showSerial:      Plasmoid.configuration.showBatSerial
             showChargeLimit: Plasmoid.configuration.showBatChargeLimit
+            showTime:        Plasmoid.configuration.showBatTime
         }
     }
 
