@@ -47,7 +47,7 @@ if command -v kpackagetool6 >/dev/null 2>&1; then
         echo "  widget upgraded — re-add to desktop to pick up the new code if needed"
     else
         kpackagetool6 -t Plasma/Applet -i "$PROJECT_DIR/plasmoid"
-        echo "  widget installed — add 'Battery Info' from the widgets menu"
+        echo "  widget installed — add 'HealthPanel' from the widgets menu"
     fi
 else
     echo "kpackagetool6 not found — skipping Plasma widget install (no KDE Plasma here?)"
@@ -60,7 +60,7 @@ echo "  Watch:         battinfo -w"
 echo "  History:       battinfo --history"
 echo "  Manual log:    systemctl --user start battinfo-snapshot.service"
 echo "  Timer status:  systemctl --user status battinfo-snapshot.timer"
-echo "  Plasma widget: rechts auf Desktop -> Widget hinzufügen -> 'Battery Info'"
+echo "  Plasma widget: rechts auf Desktop -> Widget hinzufügen -> 'HealthPanel'"
 echo
 case ":$PATH:" in
     *":$BIN_DIR:"*) ;;
