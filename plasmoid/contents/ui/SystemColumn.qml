@@ -7,10 +7,13 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.components as PC3
+import "i18n.js" as I18n
 
 ColumnLayout {
     id: col
     property var system
+    property string lang: "en"
+    function tr(s) { return I18n.tr(col.lang, s) }
     signal setProfile(string name)
 
     // section visibility
@@ -128,15 +131,15 @@ ColumnLayout {
         Layout.fillWidth: true
         visible: col._ok && col.showPowerMode && col.system.hasPowerProfile
         spacing: Kirigami.Units.smallSpacing
-        MLabel { text: "Power-Mode" }
+        MLabel { text: col.tr("Power mode") }
         RowLayout {
             Layout.fillWidth: true
             spacing: 2
             Repeater {
                 model: [
-                    { id: "performance", label: "Leistung" },
-                    { id: "balanced",    label: "Ausgewogen" },
-                    { id: "power-saver", label: "Sparen" }
+                    { id: "performance", label: "Performance" },
+                    { id: "balanced",    label: "Balanced" },
+                    { id: "power-saver", label: "Power Saver" }
                 ]
                 delegate: QQC2.Button {
                     required property var modelData
@@ -145,7 +148,7 @@ ColumnLayout {
                     checkable: true
                     QQC2.ButtonGroup.group: pmGroup
                     checked: col._ok && col.system.powerProfile === modelData.id
-                    text: modelData.label
+                    text: col.tr(modelData.label)
                     font.pixelSize: Kirigami.Theme.smallFont.pixelSize
                     onClicked: col.setProfile(modelData.id)
                 }
@@ -335,7 +338,7 @@ ColumnLayout {
                 text: col._ok ? col.system.fmtPct(col.system.smartHealthPct) : ""
                 color: "#2ecc71"; font.bold: true; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
             }
-            PC3.Label { text: "Health"; opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
+            PC3.Label { text: col.tr("Health"); opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
             PC3.Label { text: "·"; opacity: 0.3; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
             PC3.Label { text: col._ok ? col.system.fmtHours(col.system.smartPowerOnHours) : ""; opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
             PC3.Label { text: "·"; opacity: 0.3; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
@@ -359,12 +362,12 @@ ColumnLayout {
             ColumnLayout {
                 spacing: 0
                 PC3.Label { text: col._ok ? "↓ " + col.system.fmtRate(col.system.netDownMBps) : "—"; font.bold: true; font.pixelSize: Kirigami.Theme.defaultFont.pixelSize }
-                PC3.Label { text: "Down"; opacity: 0.5; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
+                PC3.Label { text: col.tr("Down"); opacity: 0.5; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
             }
             ColumnLayout {
                 spacing: 0
                 PC3.Label { text: col._ok ? "↑ " + col.system.fmtRate(col.system.netUpMBps) : "—"; font.bold: true; font.pixelSize: Kirigami.Theme.defaultFont.pixelSize }
-                PC3.Label { text: "Up"; opacity: 0.5; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
+                PC3.Label { text: col.tr("Up"); opacity: 0.5; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
             }
         }
         // sparkline style: compact current line + activity graph

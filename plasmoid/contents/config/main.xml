@@ -11,6 +11,10 @@
       <min>1</min>
       <max>30</max>
     </entry>
+    <!-- UI language: "system" follows the locale, or "de"/"en" override -->
+    <entry name="language" type="String">
+      <default>system</default>
+    </entry>
 
     <!-- Sichtbarkeit der System-Spalten-Sektionen -->
     <entry name="showPowerMode" type="Bool">

@@ -7,10 +7,13 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.components as PC3
 import org.kde.plasma.extras as PlasmaExtras
+import "i18n.js" as I18n
 
 Item {
     id: card
     property var battery
+    property string lang: "en"
+    function tr(s) { return I18n.tr(card.lang, s) }
 
     // section visibility (bound to widget config; Health header stays always on)
     property bool showCycles: true
@@ -34,7 +37,7 @@ Item {
         width: parent.width - Kirigami.Units.gridUnit * 2
         visible: !card._ok
         iconName: "battery-missing"
-        text: card._ready ? "Kein Akku gefunden" : "Lade …"
+        text: card._ready ? card.tr("no battery found") : "…"
         explanation: card._ready && card.battery.error
             ? card.battery.error
             : ""
@@ -75,7 +78,7 @@ Item {
                         Layout.fillWidth: true
                     }
                     PC3.Label {
-                        text: (card.battery.name || "Battery") + " · " + card.battery.technology
+                        text: (card.battery.name || card.tr("Battery")) + " · " + card.battery.technology
                         opacity: 0.7
                         font.pixelSize: Kirigami.Theme.smallFont.pixelSize
                     }
@@ -91,11 +94,11 @@ Item {
 
                 RowLayout {
                     Layout.fillWidth: true
-                    PC3.Label { text: "Ladung"; opacity: 0.8 }
+                    PC3.Label { text: card.tr("Charge"); opacity: 0.8 }
                     Item { Layout.fillWidth: true }
                     PC3.Label {
                         visible: card.showTime && card.battery.hasTimeRemaining
-                        text: card.battery.fmtDuration(card.battery.timeRemainingHours) + " " + card.battery.timeLabel()
+                        text: card.battery.fmtDuration(card.battery.timeRemainingHours) + " " + (card.battery.status === "Charging" ? card.tr("to full") : card.tr("left"))
                         opacity: 0.7
                         font.pixelSize: Kirigami.Theme.smallFont.pixelSize
                     }
@@ -131,7 +134,7 @@ Item {
 
                 RowLayout {
                     Layout.fillWidth: true
-                    PC3.Label { text: "Health"; opacity: 0.8 }
+                    PC3.Label { text: card.tr("Health"); opacity: 0.8 }
                     Item { Layout.fillWidth: true }
                     PC3.Label {
                         text: card.battery.fmtPct(card.battery.healthPct)
@@ -165,16 +168,16 @@ Item {
                 columnSpacing: Kirigami.Units.largeSpacing
                 rowSpacing: 2
 
-                PC3.Label { text: "Cycles"; opacity: 0.8; visible: card.showCycles }
+                PC3.Label { text: card.tr("Cycles"); opacity: 0.8; visible: card.showCycles }
                 PC3.Label { text: card.battery.cycleCount; Layout.alignment: Qt.AlignRight; visible: card.showCycles }
 
-                PC3.Label { text: "Designed"; opacity: 0.8; visible: card.showCapacity }
+                PC3.Label { text: card.tr("Designed"); opacity: 0.8; visible: card.showCapacity }
                 PC3.Label { text: card.battery.fmtWh(card.battery.energyFullDesignWh); Layout.alignment: Qt.AlignRight; visible: card.showCapacity }
 
-                PC3.Label { text: "Full (now)"; opacity: 0.8; visible: card.showCapacity }
+                PC3.Label { text: card.tr("Full (now)"); opacity: 0.8; visible: card.showCapacity }
                 PC3.Label { text: card.battery.fmtWh(card.battery.energyFullWh); Layout.alignment: Qt.AlignRight; visible: card.showCapacity }
 
-                PC3.Label { text: "Remaining"; opacity: 0.8; visible: card.showCapacity }
+                PC3.Label { text: card.tr("Remaining"); opacity: 0.8; visible: card.showCapacity }
                 PC3.Label {
                     text: card.battery.fmtWh(card.battery.energyNowWh) + "  (" + card.battery.capacityPct + "%)"
                     Layout.alignment: Qt.AlignRight; visible: card.showCapacity
@@ -194,22 +197,22 @@ Item {
                 columnSpacing: Kirigami.Units.largeSpacing
                 rowSpacing: 2
 
-                PC3.Label { text: "Status"; opacity: 0.8; visible: card.showLive }
+                PC3.Label { text: card.tr("Status"); opacity: 0.8; visible: card.showLive }
                 PC3.Label {
                     text: card.battery.statusGlyph() + " " + (card.battery.status || "—")
                     Layout.alignment: Qt.AlignRight; visible: card.showLive
                 }
 
-                PC3.Label { text: "Power draw"; opacity: 0.8; visible: card.showLive }
+                PC3.Label { text: card.tr("Power draw"); opacity: 0.8; visible: card.showLive }
                 PC3.Label { text: card.battery.fmtW(card.battery.powerNowW); Layout.alignment: Qt.AlignRight; visible: card.showLive }
 
-                PC3.Label { text: "Voltage"; opacity: 0.8; visible: card.showLive }
+                PC3.Label { text: card.tr("Voltage"); opacity: 0.8; visible: card.showLive }
                 PC3.Label {
-                    text: card.battery.fmtV(card.battery.voltageNowV) + "  (min " + card.battery.fmtV(card.battery.voltageMinDesignV) + ")"
+                    text: card.battery.fmtV(card.battery.voltageNowV) + "  (card.tr("design min") + " " + card.battery.fmtV(card.battery.voltageMinDesignV) + ""
                     Layout.alignment: Qt.AlignRight; visible: card.showLive
                 }
 
-                PC3.Label { text: "Serial"; opacity: 0.8; visible: card.showSerial }
+                PC3.Label { text: card.tr("Serial"); opacity: 0.8; visible: card.showSerial }
                 PC3.Label { text: card.battery.serial || "n/a"; Layout.alignment: Qt.AlignRight; visible: card.showSerial }
             }
 
@@ -232,13 +235,13 @@ Item {
                 columnSpacing: Kirigami.Units.largeSpacing
                 rowSpacing: 2
 
-                PC3.Label { text: "Charge limit"; opacity: 0.8 }
+                PC3.Label { text: card.tr("Charge limit"); opacity: 0.8 }
                 PC3.Label {
                     text: card.battery.chargeStart + "% – " + card.battery.chargeEnd + "%"
                     Layout.alignment: Qt.AlignRight
                 }
 
-                PC3.Label { text: "Charge mode"; opacity: 0.8 }
+                PC3.Label { text: card.tr("Charge mode"); opacity: 0.8 }
                 PC3.Label { text: card.battery.chargeBehaviour || "auto"; Layout.alignment: Qt.AlignRight }
             }
 

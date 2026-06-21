@@ -11,6 +11,13 @@ PlasmoidItem {
     property bool keepOpen: false
     hideOnWindowDeactivate: !keepOpen
 
+    // Resolved UI language ("system" → locale, else de/en override).
+    readonly property string uiLang: {
+        var c = Plasmoid.configuration.language
+        if (c === "de" || c === "en") return c
+        return Qt.locale().name.indexOf("de") === 0 ? "de" : "en"
+    }
+
     // Expose the data object as a root property so the representation
     // Components (which sit in their own scope) can reference it via root.battery.
     property alias battery: batteryData
@@ -215,6 +222,7 @@ PlasmoidItem {
     compactRepresentation: Compact {
         battery: root.battery
         system: root.system
+        lang: root.uiLang
         onToggleExpanded: root.expanded = !root.expanded
     }
 
@@ -222,6 +230,7 @@ PlasmoidItem {
         battery: root.battery
         system: root.system
         control: root.control
+        lang: root.uiLang
         pinned: root.keepOpen
         onSetProfile: function(name) { root.setPowerProfile(name) }
         onTogglePin: root.keepOpen = !root.keepOpen

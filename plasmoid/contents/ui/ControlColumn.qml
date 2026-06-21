@@ -7,10 +7,13 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.components as PC3
+import "i18n.js" as I18n
 
 ColumnLayout {
     id: col
     property var control
+    property string lang: "en"
+    function tr(s) { return I18n.tr(col.lang, s) }
     property bool showInhibit: true
     property bool showScreenBrightness: true
     property bool showKbdBrightness: true
@@ -33,14 +36,14 @@ ColumnLayout {
         opacity: 0.62
     }
 
-    MLabel { text: "Steuerung" }
+    MLabel { text: col.tr("Controls") }
 
     // ---- inhibit standby / lock ----
     RowLayout {
         Layout.fillWidth: true
         visible: col.showInhibit
         PC3.Label {
-            text: "Standby & Sperre verhindern"
+            text: col.tr("Prevent standby & lock")
             Layout.fillWidth: true
             elide: Text.ElideRight
         }
@@ -61,7 +64,7 @@ ColumnLayout {
         Layout.fillWidth: true
         visible: col.showScreenBrightness && col._ok && col.control.hasScreen
         spacing: 2
-        MLabel { text: "Bildschirm" }
+        MLabel { text: col.tr("Screen") }
         RowLayout {
             Layout.fillWidth: true
             spacing: Kirigami.Units.smallSpacing
@@ -95,7 +98,7 @@ ColumnLayout {
         Layout.fillWidth: true
         visible: col.showKbdBrightness && col._ok && col.control.hasKbd
         spacing: 2
-        MLabel { text: "Tastatur" }
+        MLabel { text: col.tr("Keyboard") }
         RowLayout {
             Layout.fillWidth: true
             spacing: Kirigami.Units.smallSpacing
@@ -133,7 +136,7 @@ ColumnLayout {
         Layout.fillWidth: true
         visible: col.showVolume && col._ok && col.control.hasVolume
         spacing: 2
-        MLabel { text: "Lautstärke" }
+        MLabel { text: col.tr("Volume") }
         RowLayout {
             Layout.fillWidth: true
             spacing: Kirigami.Units.smallSpacing
@@ -170,19 +173,19 @@ ColumnLayout {
     QQC2.Button {
         Layout.fillWidth: true
         icon.name: "configure"
-        text: i18n("Systemeinstellungen")
+        text: col.tr("System Settings")
         onClicked: col.openSystemSettings()
     }
     QQC2.Button {
         Layout.fillWidth: true
         icon.name: "org.kde.plasma-systemmonitor"
-        text: i18n("Systemmonitor")
+        text: col.tr("System Monitor")
         onClicked: col.openSystemMonitor()
     }
     QQC2.Button {
         Layout.fillWidth: true
         icon.name: "configure"
-        text: i18n("Widget-Einstellungen")
+        text: col.tr("Widget Settings")
         onClicked: col.openWidgetSettings()
     }
 }

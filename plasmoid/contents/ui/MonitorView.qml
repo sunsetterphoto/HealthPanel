@@ -7,12 +7,14 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.components as PC3
 import org.kde.plasma.plasmoid
+import "i18n.js" as I18n
 
 Item {
     id: view
     property var battery
     property var system
     property var control
+    property string lang: "en"
     property bool pinned: false
     signal setProfile(string name)
     signal togglePin()
@@ -24,6 +26,7 @@ Item {
     signal openSystemSettings()
     signal openSystemMonitor()
     signal openWidgetSettings()
+    function tr(s) { return I18n.tr(view.lang, s) }
 
     readonly property bool _showSystem: Plasmoid.configuration.showSystemColumn
     readonly property bool _showBattery: Plasmoid.configuration.showBatteryColumn
@@ -45,6 +48,7 @@ Item {
             Layout.minimumWidth: Kirigami.Units.gridUnit * 13
             Layout.margins: Kirigami.Units.gridUnit * 0.75
             visible: view._showSystem
+            lang: view.lang
             system: view.system
             showPowerMode: Plasmoid.configuration.showPowerMode
             showCpu:       Plasmoid.configuration.showCpu
@@ -76,6 +80,7 @@ Item {
             Layout.fillHeight: true
             Layout.minimumWidth: Kirigami.Units.gridUnit * 13
             visible: view._showBattery
+            lang: view.lang
             battery: view.battery
             showCycles:      Plasmoid.configuration.showBatCycles
             showCapacity:    Plasmoid.configuration.showBatCapacity
@@ -98,6 +103,7 @@ Item {
             Layout.minimumWidth: Kirigami.Units.gridUnit * 11
             Layout.margins: Kirigami.Units.gridUnit * 0.75
             visible: view._showControls
+            lang: view.lang
             control: view.control
             showInhibit:          Plasmoid.configuration.showInhibit
             showScreenBrightness: Plasmoid.configuration.showScreenBrightness
@@ -123,7 +129,7 @@ Item {
         flat: true
         display: PC3.AbstractButton.IconOnly
         opacity: hovered || view.pinned ? 1 : 0.4
-        PC3.ToolTip.text: view.pinned ? i18n("Angeheftet — bleibt offen") : i18n("Anheften")
+        PC3.ToolTip.text: view.pinned ? view.tr("Pinned — stays open") : view.tr("Pin")
         PC3.ToolTip.visible: hovered
         PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
         onClicked: view.togglePin()

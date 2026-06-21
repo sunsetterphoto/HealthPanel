@@ -9,6 +9,8 @@ Kirigami.FormLayout {
     // --- refresh ---
     property alias cfg_refreshSeconds: refreshSlider.value
     property int   cfg_refreshSecondsDefault: 2
+    property string cfg_language: "system"
+    property string cfg_languageDefault: "system"
 
     // --- system-column section visibility (checkbox aliases) ---
     property alias cfg_showPowerMode: powerModeCheck.checked
@@ -96,6 +98,19 @@ Kirigami.FormLayout {
             text: refreshSlider.value + " s"
             Layout.preferredWidth: Kirigami.Units.gridUnit * 3
         }
+    }
+
+    QQC2.ComboBox {
+        id: languageBox
+        Kirigami.FormData.label: i18n("Sprache / Language:")
+        textRole: "text"; valueRole: "value"
+        model: [
+            { text: i18n("Systemstandard / System default"), value: "system" },
+            { text: "Deutsch", value: "de" },
+            { text: "English", value: "en" }
+        ]
+        onActivated: form.cfg_language = currentValue
+        Component.onCompleted: currentIndex = indexOfValue(form.cfg_language)
     }
 
     Item { Kirigami.FormData.isSection: true }

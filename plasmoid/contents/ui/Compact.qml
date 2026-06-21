@@ -14,6 +14,7 @@ MouseArea {
     id: compact
     property var battery
     property var system
+    property string lang: "en"
     signal toggleExpanded()
 
     readonly property bool _ready: compact.battery !== null && compact.battery !== undefined
