@@ -29,7 +29,16 @@ ColumnLayout {
     property string netStyle: "text"    // text | sparkline
 
     readonly property bool _ok: system !== null && system !== undefined && system.valid === true
+    readonly property bool _pm: _ok && showPowerMode && system.hasPowerProfile
     spacing: Kirigami.Units.smallSpacing
+
+    // A thin section divider that only appears when something visible sits above it.
+    component SectionRule: Kirigami.Separator {
+        Layout.fillWidth: true
+        Layout.topMargin: 2
+        Layout.bottomMargin: 2
+        opacity: 0.6
+    }
 
     // ---- reusable visualisations ----
     component Bar: Rectangle {
@@ -139,12 +148,8 @@ ColumnLayout {
             }
         }
     }
-    Kirigami.Separator {
-        Layout.fillWidth: true
-        visible: col._ok && col.showPowerMode && col.system.hasPowerProfile
-    }
-
     // ---- CPU ----
+    SectionRule { visible: col._ok && col.showCpu && col._pm }
     ColumnLayout {
         Layout.fillWidth: true
         visible: col._ok && col.showCpu
@@ -195,6 +200,7 @@ ColumnLayout {
     }
 
     // ---- RAM + swap ----
+    SectionRule { visible: col._ok && col.showRam && (col._pm || col.showCpu) }
     ColumnLayout {
         Layout.fillWidth: true
         visible: col._ok && col.showRam
@@ -234,6 +240,7 @@ ColumnLayout {
     }
 
     // ---- Disk + temp + SMART ----
+    SectionRule { visible: col._ok && col.showDisk && (col._pm || col.showCpu || col.showRam) }
     ColumnLayout {
         Layout.fillWidth: true
         visible: col._ok && col.showDisk
@@ -288,6 +295,7 @@ ColumnLayout {
     }
 
     // ---- Netz ----
+    SectionRule { visible: col._ok && col.showNet && (col._pm || col.showCpu || col.showRam || col.showDisk) }
     ColumnLayout {
         Layout.fillWidth: true
         visible: col._ok && col.showNet

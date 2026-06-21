@@ -27,14 +27,14 @@ Kirigami.FormLayout {
     property bool  cfg_showTempsDefault: true
 
     // --- per-metric styles (plain props; combos set them via onActivated) ---
-    property string cfg_cpuStyle: "bar"
-    property string cfg_cpuStyleDefault: "bar"
+    property string cfg_cpuStyle: "sparkline"
+    property string cfg_cpuStyleDefault: "sparkline"
     property string cfg_ramStyle: "bar"
     property string cfg_ramStyleDefault: "bar"
     property string cfg_diskStyle: "bar"
     property string cfg_diskStyleDefault: "bar"
-    property string cfg_netStyle: "text"
-    property string cfg_netStyleDefault: "text"
+    property string cfg_netStyle: "sparkline"
+    property string cfg_netStyleDefault: "sparkline"
 
     // --- battery-column section visibility ---
     property alias cfg_showBatCycles: batCyclesCheck.checked
@@ -44,7 +44,7 @@ Kirigami.FormLayout {
     property alias cfg_showBatLive: batLiveCheck.checked
     property bool  cfg_showBatLiveDefault: true
     property alias cfg_showBatSerial: batSerialCheck.checked
-    property bool  cfg_showBatSerialDefault: true
+    property bool  cfg_showBatSerialDefault: false
     property alias cfg_showBatChargeLimit: batChargeCheck.checked
     property bool  cfg_showBatChargeLimitDefault: true
 

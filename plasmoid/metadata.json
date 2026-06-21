@@ -13,7 +13,7 @@
         "Id": "io.github.sunsetterphoto.healthpanel",
         "License": "GPL-3.0",
         "Name": "HealthPanel",
-        "Version": "1.2.0",
+        "Version": "1.2.1",
         "Website": "https://github.com/sunsetterphoto/HealthPanel"
     },
     "X-Plasma-API-Minimum-Version": "6.0"

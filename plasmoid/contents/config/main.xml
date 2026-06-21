@@ -37,7 +37,7 @@
 
     <!-- Anzeige-Stil pro Metrik: bar | ring | sparkline (netz: text | sparkline) -->
     <entry name="cpuStyle" type="String">
-      <default>bar</default>
+      <default>sparkline</default>
     </entry>
     <entry name="ramStyle" type="String">
       <default>bar</default>
@@ -46,7 +46,7 @@
       <default>bar</default>
     </entry>
     <entry name="netStyle" type="String">
-      <default>text</default>
+      <default>sparkline</default>
     </entry>
 
     <!-- Sichtbarkeit der Akku-Detailblöcke (Health bleibt immer sichtbar) -->
@@ -60,7 +60,7 @@
       <default>true</default>
     </entry>
     <entry name="showBatSerial" type="Bool">
-      <default>true</default>
+      <default>false</default>
     </entry>
     <entry name="showBatChargeLimit" type="Bool">
       <default>true</default>
