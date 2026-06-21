@@ -93,7 +93,7 @@ PlasmoidItem {
 
     function setPowerProfile(name) {
         var cmd = "busctl --system set-property net.hadess.PowerProfiles " +
-                  "/net/hadess/PowerProfiles net.hadess.PowerProfiles ActiveProfile s " + name
+                  "/net/hadess/PowerProfiles net.hadess.PowerProfiles ActiveProfile s '" + name + "'"
         profileSetter.connectSource(cmd)
     }
 
