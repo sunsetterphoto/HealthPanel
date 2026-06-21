@@ -23,6 +23,7 @@ Item {
     signal setInhibit(bool on)
     signal openSystemSettings()
     signal openSystemMonitor()
+    signal openWidgetSettings()
 
     readonly property bool _showSystem: Plasmoid.configuration.showSystemColumn
     readonly property bool _showBattery: Plasmoid.configuration.showBatteryColumn
@@ -109,6 +110,7 @@ Item {
             onSetInhibit: function(on) { view.setInhibit(on) }
             onOpenSystemSettings: view.openSystemSettings()
             onOpenSystemMonitor: view.openSystemMonitor()
+            onOpenWidgetSettings: view.openWidgetSettings()
         }
     }
 

@@ -23,6 +23,7 @@ ColumnLayout {
     signal setInhibit(bool on)
     signal openSystemSettings()
     signal openSystemMonitor()
+    signal openWidgetSettings()
 
     readonly property bool _ok: control !== null && control !== undefined
     spacing: Kirigami.Units.smallSpacing
@@ -177,5 +178,11 @@ ColumnLayout {
         icon.name: "org.kde.plasma-systemmonitor"
         text: i18n("Systemmonitor")
         onClicked: col.openSystemMonitor()
+    }
+    QQC2.Button {
+        Layout.fillWidth: true
+        icon.name: "configure"
+        text: i18n("Widget-Einstellungen")
+        onClicked: col.openWidgetSettings()
     }
 }

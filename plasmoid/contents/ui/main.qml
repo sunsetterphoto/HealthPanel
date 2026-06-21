@@ -232,6 +232,7 @@ PlasmoidItem {
         onSetInhibit: function(on) { root.setInhibit(on) }
         onOpenSystemSettings: root.launch("systemsettings")
         onOpenSystemMonitor: root.launch("plasma-systemmonitor")
+        onOpenWidgetSettings: Plasmoid.internalAction("configure").trigger()
     }
 
     Plasmoid.icon: {
