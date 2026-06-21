@@ -52,6 +52,17 @@ Kirigami.FormLayout {
     property alias cfg_showBatTime: batTimeCheck.checked
     property bool  cfg_showBatTimeDefault: true
 
+    property alias cfg_showControls: controlsCheck.checked
+    property bool  cfg_showControlsDefault: true
+    property alias cfg_showInhibit: inhibitCheck.checked
+    property bool  cfg_showInhibitDefault: true
+    property alias cfg_showScreenBrightness: screenCheck.checked
+    property bool  cfg_showScreenBrightnessDefault: true
+    property alias cfg_showKbdBrightness: kbdCheck.checked
+    property bool  cfg_showKbdBrightnessDefault: true
+    property alias cfg_showVolume: volumeCheck.checked
+    property bool  cfg_showVolumeDefault: true
+
     readonly property var graphStyles: [
         { text: i18n("Balken"),    value: "bar" },
         { text: i18n("Ring"),      value: "ring" },
@@ -143,4 +154,36 @@ Kirigami.FormLayout {
     QQC2.CheckBox { id: batSerialCheck;   text: i18n("Seriennummer") }
     QQC2.CheckBox { id: batTimeCheck;     text: i18n("Geschätzte Restlaufzeit (Stunden)") }
     QQC2.CheckBox { id: batChargeCheck;   text: i18n("Lenovo Ladeschwelle") }
+
+    Item { Kirigami.FormData.isSection: true }
+
+    QQC2.CheckBox {
+        id: controlsCheck
+        Kirigami.FormData.label: i18n("Steuer-Spalte (rechts):")
+        text: i18n("Steuerung anzeigen")
+    }
+    QQC2.CheckBox {
+        id: inhibitCheck
+        text: i18n("Standby & Sperre verhindern")
+        enabled: controlsCheck.checked
+        leftPadding: controlsCheck.indicator.width + Kirigami.Units.smallSpacing
+    }
+    QQC2.CheckBox {
+        id: screenCheck
+        text: i18n("Bildschirmhelligkeit")
+        enabled: controlsCheck.checked
+        leftPadding: controlsCheck.indicator.width + Kirigami.Units.smallSpacing
+    }
+    QQC2.CheckBox {
+        id: kbdCheck
+        text: i18n("Tastaturhelligkeit")
+        enabled: controlsCheck.checked
+        leftPadding: controlsCheck.indicator.width + Kirigami.Units.smallSpacing
+    }
+    QQC2.CheckBox {
+        id: volumeCheck
+        text: i18n("Lautstärke + Stummschalten")
+        enabled: controlsCheck.checked
+        leftPadding: controlsCheck.indicator.width + Kirigami.Units.smallSpacing
+    }
 }

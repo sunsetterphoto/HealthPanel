@@ -24,6 +24,10 @@ PlasmoidItem {
 
     SystemData { id: systemData }
 
+    property alias control: controlData
+
+    ControlData { id: controlData }
+
     // ---- data probe via executable DataSource ----
     // Pick the first battery (BAT0, BAT1, … or vendor names like "macsmc-battery")
     // dynamically, then cat its uevent plus three optional Lenovo charge files;
@@ -103,6 +107,74 @@ PlasmoidItem {
         profileSetter.connectSource(cmd)
     }
 
+    // ---- controllable settings: read current screen/keyboard brightness + volume ----
+    readonly property string _ctrlProbeCmd:
+        "echo '===SCREEN==='; " +
+        "D=$(busctl --user get-property org.kde.ScreenBrightness /org/kde/ScreenBrightness " +
+        "org.kde.ScreenBrightness DisplaysDBusNames 2>/dev/null | grep -oE 'display[0-9]+' | head -1); " +
+        "if [ -n \"$D\" ]; then echo \"DISPLAY=$D\"; " +
+        "busctl --user get-property org.kde.ScreenBrightness /org/kde/ScreenBrightness/$D org.kde.ScreenBrightness.Display Brightness 2>/dev/null; " +
+        "busctl --user get-property org.kde.ScreenBrightness /org/kde/ScreenBrightness/$D org.kde.ScreenBrightness.Display MaxBrightness 2>/dev/null; fi; " +
+        "echo '===KBD==='; " +
+        "busctl --system call org.freedesktop.UPower /org/freedesktop/UPower/KbdBacklight org.freedesktop.UPower.KbdBacklight GetBrightness 2>/dev/null; " +
+        "busctl --system call org.freedesktop.UPower /org/freedesktop/UPower/KbdBacklight org.freedesktop.UPower.KbdBacklight GetMaxBrightness 2>/dev/null; " +
+        "echo '===VOL==='; wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null"
+
+    P5S.DataSource {
+        id: ctrlProbe
+        engine: "executable"
+        connectedSources: []
+        onNewData: function(source, data) {
+            controlData.applyControlProbe(data["stdout"] || "")
+            disconnectSource(source)
+        }
+    }
+
+    P5S.DataSource {
+        id: ctrlSetter
+        engine: "executable"
+        connectedSources: []
+        onNewData: function(source, data) {
+            disconnectSource(source)
+            ctrlProbe.connectSource(root._ctrlProbeCmd)   // re-read after a change
+        }
+    }
+
+    // long-running systemd-inhibit while the toggle is on
+    P5S.DataSource {
+        id: inhibitor
+        engine: "executable"
+        connectedSources: []
+    }
+
+    function setScreenBrightness(raw) {
+        if (!control.hasScreen || control.screenDisplay === "") return
+        ctrlSetter.connectSource("busctl --user call org.kde.ScreenBrightness " +
+            "/org/kde/ScreenBrightness/" + control.screenDisplay +
+            " org.kde.ScreenBrightness.Display SetBrightness iu " + Math.round(raw) + " 1")
+    }
+    function setKbdBrightness(val) {
+        ctrlSetter.connectSource("busctl --system call org.freedesktop.UPower " +
+            "/org/freedesktop/UPower/KbdBacklight org.freedesktop.UPower.KbdBacklight SetBrightness i " + Math.round(val))
+    }
+    function setVolume(frac) {
+        ctrlSetter.connectSource("wpctl set-volume @DEFAULT_AUDIO_SINK@ " + frac.toFixed(2))
+    }
+    function toggleMute() {
+        ctrlSetter.connectSource("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle")
+    }
+    function setInhibit(on) {
+        if (on) {
+            inhibitor.connectSource("systemd-inhibit --what=sleep:idle " +
+                "--who=HealthPanel --why='Vom Nutzer aktiviert' sleep infinity")
+            control.inhibited = true
+        } else {
+            var srcs = inhibitor.connectedSources.slice()
+            for (var i = 0; i < srcs.length; i++) inhibitor.disconnectSource(srcs[i])
+            control.inhibited = false
+        }
+    }
+
     Timer {
         id: probeTimer
         interval: Plasmoid.configuration.refreshSeconds * 1000
@@ -113,6 +185,7 @@ PlasmoidItem {
             probe.connectSource(root._probeCmd)
             sysProbe.connectSource(root._sysProbeCmd)
             profileProbe.connectSource(root._profileGetCmd)
+            ctrlProbe.connectSource(root._ctrlProbeCmd)
         }
     }
 
@@ -135,9 +208,15 @@ PlasmoidItem {
     fullRepresentation: MonitorView {
         battery: root.battery
         system: root.system
+        control: root.control
         pinned: root.keepOpen
         onSetProfile: function(name) { root.setPowerProfile(name) }
         onTogglePin: root.keepOpen = !root.keepOpen
+        onSetScreenBrightness: function(raw) { root.setScreenBrightness(raw) }
+        onSetKbdBrightness: function(val) { root.setKbdBrightness(val) }
+        onSetVolume: function(frac) { root.setVolume(frac) }
+        onToggleMute: root.toggleMute()
+        onSetInhibit: function(on) { root.setInhibit(on) }
     }
 
     Plasmoid.icon: {

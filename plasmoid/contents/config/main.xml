@@ -78,5 +78,22 @@
     <entry name="showBatTime" type="Bool">
       <default>true</default>
     </entry>
+
+    <!-- Control column (right): quick settings -->
+    <entry name="showControls" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="showInhibit" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="showScreenBrightness" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="showKbdBrightness" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="showVolume" type="Bool">
+      <default>true</default>
+    </entry>
   </group>
 </kcfg>

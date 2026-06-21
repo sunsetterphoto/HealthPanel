@@ -1,7 +1,6 @@
-// MonitorView.qml — full representation: system column │ separator │ battery card,
-// with a pin button (top-right) to keep the popup open. Section visibility, styles
-// and battery-detail visibility come from Plasmoid.configuration; sizing is
-// responsive (both columns fill width).
+// MonitorView.qml — full representation: system load (left) │ battery (middle) │
+// quick controls (right), with a pin button (top-right). Section visibility,
+// styles and detail toggles come from Plasmoid.configuration.
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
@@ -13,13 +12,21 @@ Item {
     id: view
     property var battery
     property var system
+    property var control
     property bool pinned: false
     signal setProfile(string name)
     signal togglePin()
+    signal setScreenBrightness(real raw)
+    signal setKbdBrightness(real val)
+    signal setVolume(real frac)
+    signal toggleMute()
+    signal setInhibit(bool on)
 
-    Layout.minimumWidth: Kirigami.Units.gridUnit * 28
+    readonly property bool _showControls: Plasmoid.configuration.showControls
+
+    Layout.minimumWidth: Kirigami.Units.gridUnit * (_showControls ? 40 : 28)
     Layout.minimumHeight: Kirigami.Units.gridUnit * 17
-    Layout.preferredWidth: Kirigami.Units.gridUnit * 31
+    Layout.preferredWidth: Kirigami.Units.gridUnit * (_showControls ? 44 : 31)
     Layout.preferredHeight: Kirigami.Units.gridUnit * 20
 
     RowLayout {
@@ -64,6 +71,31 @@ Item {
             showSerial:      Plasmoid.configuration.showBatSerial
             showChargeLimit: Plasmoid.configuration.showBatChargeLimit
             showTime:        Plasmoid.configuration.showBatTime
+        }
+
+        Kirigami.Separator {
+            Layout.fillHeight: true
+            Layout.topMargin: Kirigami.Units.gridUnit
+            Layout.bottomMargin: Kirigami.Units.gridUnit
+            visible: view._showControls
+        }
+
+        ControlColumn {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.minimumWidth: Kirigami.Units.gridUnit * 11
+            Layout.margins: Kirigami.Units.gridUnit * 0.75
+            visible: view._showControls
+            control: view.control
+            showInhibit:          Plasmoid.configuration.showInhibit
+            showScreenBrightness: Plasmoid.configuration.showScreenBrightness
+            showKbdBrightness:    Plasmoid.configuration.showKbdBrightness
+            showVolume:           Plasmoid.configuration.showVolume
+            onSetScreenBrightness: function(raw) { view.setScreenBrightness(raw) }
+            onSetKbdBrightness: function(val) { view.setKbdBrightness(val) }
+            onSetVolume: function(frac) { view.setVolume(frac) }
+            onToggleMute: view.toggleMute()
+            onSetInhibit: function(on) { view.setInhibit(on) }
         }
     }
 
