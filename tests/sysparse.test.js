@@ -174,6 +174,7 @@ test('parseProbe returns a complete, valid result object', () => {
   assert.equal(r.valid, true);
   assert.ok(Math.abs(r.cpuPct - 50) < 1);
   assert.equal(r.coreLoads.length, 2);                    // 4 logical -> 2 physical
+  assert.equal(r.coreLoadsLogical.length, 4);             // raw logical cores
   assert.ok(Math.abs(r.ramPct - 57.7) < 0.5);
   assert.ok(Math.abs(r.swapPct - 5.1) < 0.5);
   assert.ok(Math.abs(r.netDownMBps - 0.5) < 0.05);

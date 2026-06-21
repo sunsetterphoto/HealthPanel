@@ -253,15 +253,15 @@ cmd_battery() { gather_battery; render_battery; printf '\n'; }
 cmd_temps()   { render_temps; printf '\n'; }
 cmd_raw()     { for f in "$BAT_DIR"/*; do [[ -f "$f" && -r "$f" ]] || continue; printf '%s=%s\n' "$(basename "$f")" "$(cat "$f" 2>/dev/null | tr '\n' ' ')"; done; }
 cmd_watch() {
-    # Flicker-free: render to the alternate screen, then on each tick move the
-    # cursor home and overwrite in place (clear-to-EOL per line + clear-to-end),
-    # so the terminal is never blanked and redrawn.
+    # Flicker-free live view of the given render function (default cmd_all).
+    # Renders to the alternate screen, then on each tick moves the cursor home and
+    # overwrites in place (clear-to-EOL per line + clear-to-end) — never blanked.
+    local render="${1:-cmd_all}" out
     trap 'tput cnorm 2>/dev/null; tput rmcup 2>/dev/null; exit 0' INT TERM
     tput smcup 2>/dev/null || true
     tput civis 2>/dev/null || true
-    local out
     while true; do
-        out=$(cmd_all)
+        out=$("$render")
         printf '\033[H%s\033[J\n  %s(live · Ctrl-C zum Beenden)%s' \
             "${out//$'\n'/$'\033[K'$'\n'}" "$C_DIM" "$C_RESET"
         sleep 1
@@ -287,21 +287,32 @@ Usage:
   healthpanel system       only the system section (CPU/RAM/disk/network/power)
   healthpanel battery      only the battery section
   healthpanel temps        all hwmon temperature sensors
-  healthpanel -w|--watch   live full view
-  healthpanel --history    logged battery history (from the systemd timer)
   healthpanel --raw        dump all battery sysfs entries (debug)
+  healthpanel --history    logged battery history (from the systemd timer)
+  healthpanel -w|--watch   live view; combine with any section, e.g.
+                           'healthpanel -w system', 'healthpanel temps -w', '-w --raw'
   healthpanel -h|--help    this help
 EOF
 }
 
-case "${1:-}" in
-    ""|all|show)         cmd_all ;;
-    system|sys)          cmd_system ;;
-    battery|bat)         cmd_battery ;;
-    temps|temp)          cmd_temps ;;
-    -w|--watch|watch)    cmd_watch ;;
-    --history|history)   cmd_history ;;
-    --raw|raw)           cmd_raw ;;
-    -h|--help|help)      usage ;;
+# Parse args: -w/--watch may appear before or after the section name.
+WATCH=0; SECTION=""
+for a in "$@"; do
+    case "$a" in
+        -w|--watch|watch) WATCH=1 ;;
+        -h|--help|help)   usage; exit 0 ;;
+        *)                SECTION="$a" ;;
+    esac
+done
+
+case "$SECTION" in
+    ""|all|show)         RENDER=cmd_all ;;
+    system|sys)          RENDER=cmd_system ;;
+    battery|bat)         RENDER=cmd_battery ;;
+    temps|temp)          RENDER=cmd_temps ;;
+    --raw|raw)           RENDER=cmd_raw ;;
+    --history|history)   cmd_history; exit 0 ;;   # history is static, not watchable
     *) usage; exit 2 ;;
 esac
+
+if [[ $WATCH -eq 1 ]]; then cmd_watch "$RENDER"; else "$RENDER"; fi

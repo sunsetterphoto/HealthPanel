@@ -11,6 +11,7 @@ QtObject {
 
     property real cpuPct: 0
     property var  coreLoads: []         // physical-core percentages
+    property var  coreLoadsLogical: [] // logical-core (thread) percentages
     property real cpuTempC: 0
     property bool hasCpuTemp: false
 
@@ -64,6 +65,7 @@ QtObject {
         if (!valid) return;
         cpuPct = r.cpuPct;
         coreLoads = r.coreLoads;
+        coreLoadsLogical = r.coreLoadsLogical;
         ramPct = r.ramPct; ramUsedGB = r.ramUsedGB; ramTotalGB = r.ramTotalGB;
         swapPct = r.swapPct; swapUsedGB = r.swapUsedGB; swapTotalGB = r.swapTotalGB;
         diskPct = r.diskPct; diskUsedGB = r.diskUsedGB; diskTotalGB = r.diskTotalGB;

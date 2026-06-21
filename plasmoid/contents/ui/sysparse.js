@@ -193,6 +193,7 @@ function parseProbe(stdout) {
         valid: true,
         cpuPct: cpu.total,
         coreLoads: phys,
+        coreLoadsLogical: cpu.cores,
         ramPct: mem.pct, ramUsedGB: mem.usedGB, ramTotalGB: mem.totalGB,
         swapPct: mem.swapPct, swapUsedGB: mem.swapUsedGB, swapTotalGB: mem.swapTotalGB,
         diskPct: df.sizeBytes > 0 ? (df.usedBytes / df.sizeBytes) * 100 : 0,

@@ -21,6 +21,7 @@ ColumnLayout {
     property bool showNet: true
     property bool showSmart: true
     property bool showTemps: true
+    property bool cpuCoresLogical: false   // false = physical cores, true = threads
 
     // per-metric display style
     property string cpuStyle: "bar"     // bar | ring | sparkline
@@ -169,7 +170,7 @@ ColumnLayout {
             Row {
                 spacing: 2
                 Repeater {
-                    model: col._ok ? col.system.coreLoads : []
+                    model: col._ok ? (col.cpuCoresLogical ? col.system.coreLoadsLogical : col.system.coreLoads) : []
                     delegate: Rectangle {
                         required property var modelData
                         width: 3; height: 15; radius: 1

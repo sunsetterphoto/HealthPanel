@@ -25,6 +25,8 @@ Kirigami.FormLayout {
     property bool  cfg_showSmartDefault: true
     property alias cfg_showTemps: tempsCheck.checked
     property bool  cfg_showTempsDefault: true
+    property alias cfg_cpuCoresLogical: cpuLogicalCheck.checked
+    property bool  cfg_cpuCoresLogicalDefault: false
 
     // --- per-metric styles (plain props; combos set them via onActivated) ---
     property string cfg_cpuStyle: "sparkline"
@@ -81,6 +83,11 @@ Kirigami.FormLayout {
         text: i18n("Power-Modus")
     }
     QQC2.CheckBox { id: cpuCheck;   text: i18n("CPU + Kerne") }
+    QQC2.CheckBox {
+        id: cpuLogicalCheck
+        text: i18n("CPU-Kernbalken: logische Kerne (Threads) statt physische")
+        leftPadding: cpuCheck.indicator.width + Kirigami.Units.smallSpacing
+    }
     QQC2.CheckBox { id: ramCheck;   text: i18n("RAM + Swap") }
     QQC2.CheckBox { id: diskCheck;  text: i18n("Festplatte") }
     QQC2.CheckBox { id: netCheck;   text: i18n("Netzwerk") }
