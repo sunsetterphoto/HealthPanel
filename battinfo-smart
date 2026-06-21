@@ -1,17 +1,50 @@
 #!/usr/bin/env bash
-# battinfo-smart — root-only: write NVMe SMART essentials to a world-readable cache.
-# Invoked hourly by the system-level battinfo-smart.timer. Idempotent.
+# healthpanel-smart — root-only: write SSD SMART essentials to a world-readable
+# cache for the unprivileged widget. Invoked hourly by the system timer.
+# Supports NVMe and SATA/ATA SSDs. Idempotent.
 set -euo pipefail
-DEV="${1:-/dev/nvme0}"
+
+# Device: explicit arg, else the whole disk backing "/".
+if [ -n "${1:-}" ]; then
+    DEV="$1"
+else
+    src="$(findmnt -no SOURCE / 2>/dev/null || true)"
+    src="${src%%[*}"   # strip btrfs subvolume suffix, e.g. /dev/nvme0n1p7[/root]
+    pk="$(lsblk -no PKNAME "$src" 2>/dev/null | head -1 || true)"
+    if [ -n "$pk" ]; then DEV="/dev/$pk"; else DEV="$src"; fi
+fi
+
 OUT=/var/lib/battinfo
 mkdir -p "$OUT"
 tmp="$(mktemp)"
-if smartctl -j -a "$DEV" 2>/dev/null | jq -e '{
-        healthPct: (100 - .nvme_smart_health_information_log.percentage_used),
-        powerOnHours: .power_on_time.hours,
-        tbwTB: (((.nvme_smart_health_information_log.data_units_written * 512000) / 1e12 * 10) | round / 10),
-        valid: true
-    }' > "$tmp" 2>/dev/null && [ -s "$tmp" ]; then
+
+# Extract health % (100 - wear), power-on hours and TB-written, trying NVMe fields
+# first, then SATA/ATA SMART attributes (ids: 9=power-on-hours, 241=LBAs-written,
+# 231/202=life-left). Any field that can't be determined becomes null.
+if [ -n "${DEV:-}" ] && smartctl -j -a "$DEV" 2>/dev/null | jq -e '
+        def attr(ids): (.ata_smart_attributes.table // [])[]
+                       | select([.id] | inside(ids)) | .raw.value;
+        def attrnorm(ids): (.ata_smart_attributes.table // [])[]
+                       | select([.id] | inside(ids)) | .value;
+        {
+          healthPct: (
+            if .nvme_smart_health_information_log.percentage_used != null
+            then (100 - .nvme_smart_health_information_log.percentage_used)
+            else ([attrnorm([231,202])] | first) end
+          ),
+          powerOnHours: (
+            .power_on_time.hours // ([attr([9])] | first)
+          ),
+          tbwTB: (
+            if .nvme_smart_health_information_log.data_units_written != null
+            then ((.nvme_smart_health_information_log.data_units_written * 512000 / 1e12 * 10 | round) / 10)
+            else (([attr([241])] | first) as $lba
+                  | if $lba == null then null
+                    else (($lba * 512 / 1e12) * 10 | round) / 10 end)
+            end
+          ),
+          valid: true
+        }' > "$tmp" 2>/dev/null && [ -s "$tmp" ]; then
     mv "$tmp" "$OUT/smart.json"
 else
     rm -f "$tmp"

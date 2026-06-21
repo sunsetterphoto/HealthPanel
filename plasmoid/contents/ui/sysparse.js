@@ -147,7 +147,7 @@ function parseTemps(text) {
         var mm = line.match(/^(\S+)\s+(\d+)\s*$/);
         if (!mm) return;
         var name = mm[1], c = parseInt(mm[2], 10) / 1000;
-        if (cpu === null && (name === "k10temp" || name === "coretemp" || name === "zenpower")) cpu = c;
+        if (cpu === null && (name === "k10temp" || name === "coretemp" || name === "zenpower" || name === "cpu_thermal" || name === "soc_thermal")) cpu = c;
         if (disk === null && name === "nvme") disk = c;
     });
     return { cpuTempC: cpu, diskTempC: disk };

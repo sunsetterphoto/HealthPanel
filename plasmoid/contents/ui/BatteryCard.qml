@@ -74,7 +74,7 @@ Item {
                         Layout.fillWidth: true
                     }
                     PC3.Label {
-                        text: "BAT0 · " + card.battery.technology
+                        text: (card.battery.name || "Battery") + " · " + card.battery.technology
                         opacity: 0.7
                         font.pixelSize: Kirigami.Theme.smallFont.pixelSize
                     }

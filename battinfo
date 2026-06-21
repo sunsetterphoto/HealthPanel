@@ -2,7 +2,11 @@
 # battinfo — detailed laptop battery info from /sys + upower
 set -euo pipefail
 
-BAT_DIR="/sys/class/power_supply/BAT0"
+# First battery device (BAT0/BAT1/vendor name); overridable with $BAT_DIR.
+BAT_DIR="${BAT_DIR:-$(for d in /sys/class/power_supply/*; do
+    [ "$(cat "$d/type" 2>/dev/null)" = Battery ] && echo "$d" && break
+done)}"
+BAT_DIR="${BAT_DIR:-/sys/class/power_supply/BAT0}"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/battinfo"
 HISTORY_FILE="$STATE_DIR/history.tsv"
 
@@ -133,7 +137,7 @@ render() {
     local title="Akku"
     [[ -n "$MANUF" || -n "$MODEL" ]] && title="$MANUF $MODEL"
 
-    printf '\n  %s%s%s — BAT0\n' "$C_BOLD" "$title" "$C_RESET"
+    printf '\n  %s%s%s — %s\n' "$C_BOLD" "$title" "$C_RESET" "$(basename "$BAT_DIR")"
     printf '  %s%s%s\n' "$C_DIM" "──────────────────────────────────────────────" "$C_RESET"
 
     local hc; hc=$(health_color "$HEALTH")

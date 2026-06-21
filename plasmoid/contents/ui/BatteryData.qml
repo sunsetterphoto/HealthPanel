@@ -13,6 +13,7 @@ QtObject {
     property string error: ""
 
     // identity
+    property string name: ""           // POWER_SUPPLY_NAME, e.g. "BAT0", "BAT1"
     property string manufacturer: ""
     property string model: ""
     property string serial: ""
@@ -72,6 +73,7 @@ QtObject {
         }
         var p = _parseKV(text)
 
+        name               = p["POWER_SUPPLY_NAME"] || ""
         manufacturer       = p["POWER_SUPPLY_MANUFACTURER"] || ""
         model              = p["POWER_SUPPLY_MODEL_NAME"] || ""
         serial             = (p["POWER_SUPPLY_SERIAL_NUMBER"] || "").trim()

@@ -21,14 +21,16 @@ PlasmoidItem {
     SystemData { id: systemData }
 
     // ---- data probe via executable DataSource ----
-    // We cat the uevent file (contains almost everything) plus three optional
-    // Lenovo files; missing files become empty BATTINFO_* values which the
-    // parser treats as "not supported".
+    // Pick the first battery (BAT0, BAT1, … or vendor names like "macsmc-battery")
+    // dynamically, then cat its uevent plus three optional Lenovo charge files;
+    // missing files become empty BATTINFO_* values the parser treats as "not supported".
     readonly property string _probeCmd:
-        "cat /sys/class/power_supply/BAT0/uevent 2>/dev/null; " +
-        "echo \"BATTINFO_CHARGE_START=$(cat /sys/class/power_supply/BAT0/charge_control_start_threshold 2>/dev/null)\"; " +
-        "echo \"BATTINFO_CHARGE_END=$(cat /sys/class/power_supply/BAT0/charge_control_end_threshold 2>/dev/null)\"; " +
-        "echo \"BATTINFO_CHARGE_BEHAVIOUR=$(cat /sys/class/power_supply/BAT0/charge_behaviour 2>/dev/null)\""
+        "B=$(for d in /sys/class/power_supply/*; do " +
+        "  [ \"$(cat \"$d/type\" 2>/dev/null)\" = Battery ] && echo \"$d\" && break; done); " +
+        "[ -n \"$B\" ] && cat \"$B/uevent\" 2>/dev/null; " +
+        "echo \"BATTINFO_CHARGE_START=$(cat \"$B/charge_control_start_threshold\" 2>/dev/null)\"; " +
+        "echo \"BATTINFO_CHARGE_END=$(cat \"$B/charge_control_end_threshold\" 2>/dev/null)\"; " +
+        "echo \"BATTINFO_CHARGE_BEHAVIOUR=$(cat \"$B/charge_behaviour\" 2>/dev/null)\""
 
     P5S.DataSource {
         id: probe
