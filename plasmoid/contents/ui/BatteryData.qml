@@ -96,9 +96,9 @@ QtObject {
             : 0
 
         // Lenovo (printed by the shell command in main.qml as BATTINFO_* lines)
-        var cs = p["BATTINFO_CHARGE_START"]
-        var ce = p["BATTINFO_CHARGE_END"]
-        var cb = p["BATTINFO_CHARGE_BEHAVIOUR"]
+        var cs = p["HP_CHARGE_START"]
+        var ce = p["HP_CHARGE_END"]
+        var cb = p["HP_CHARGE_BEHAVIOUR"]
         hasChargeThreshold = false
         if (cs && cs.length > 0) { chargeStart = _toInt(cs); hasChargeThreshold = true }
         if (ce && ce.length > 0) { chargeEnd   = _toInt(ce); hasChargeThreshold = true }

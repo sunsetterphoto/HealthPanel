@@ -25,7 +25,7 @@ link() {
     echo "  link  $dest -> $src"
 }
 
-echo "Installing battinfo from $PROJECT_DIR ..."
+echo "Installing HealthPanel (widget + battinfo CLI) from $PROJECT_DIR ..."
 
 chmod +x "$PROJECT_DIR/battinfo" "$PROJECT_DIR/battinfo-snapshot"
 
@@ -42,7 +42,7 @@ systemctl --user enable --now battinfo-snapshot.timer
 # --- Plasma 6 widget (optional, skipped on headless / non-KDE) ---
 if command -v kpackagetool6 >/dev/null 2>&1; then
     echo "Installing Plasma widget ..."
-    if kpackagetool6 -t Plasma/Applet -l 2>/dev/null | grep -q '^org.kde.battinfo'; then
+    if kpackagetool6 -t Plasma/Applet -l 2>/dev/null | grep -q '^io.github.sunsetterphoto.healthpanel'; then
         kpackagetool6 -t Plasma/Applet -u "$PROJECT_DIR/plasmoid"
         echo "  widget upgraded — re-add to desktop to pick up the new code if needed"
     else
@@ -73,16 +73,16 @@ esac
 # into a user home (user_home_t context). restorecon then sets the correct
 # contexts (systemd_unit_file_t / bin_t). Re-run this after changing SMART files.
 echo "Richte SMART-Timer ein (sudo erforderlich)…"
-sudo install -d -m 755 /var/lib/battinfo
-sudo install -m 755 "$PROJECT_DIR/battinfo-smart" /usr/local/bin/battinfo-smart
-sudo install -m 644 "$PROJECT_DIR/systemd/battinfo-smart.service" /etc/systemd/system/battinfo-smart.service
-sudo install -m 644 "$PROJECT_DIR/systemd/battinfo-smart.timer"   /etc/systemd/system/battinfo-smart.timer
+sudo install -d -m 755 /var/lib/healthpanel
+sudo install -m 755 "$PROJECT_DIR/healthpanel-smart" /usr/local/bin/healthpanel-smart
+sudo install -m 644 "$PROJECT_DIR/systemd/healthpanel-smart.service" /etc/systemd/system/healthpanel-smart.service
+sudo install -m 644 "$PROJECT_DIR/systemd/healthpanel-smart.timer"   /etc/systemd/system/healthpanel-smart.timer
 if command -v restorecon >/dev/null 2>&1; then
-    sudo restorecon -F /usr/local/bin/battinfo-smart \
-        /etc/systemd/system/battinfo-smart.service \
-        /etc/systemd/system/battinfo-smart.timer
+    sudo restorecon -F /usr/local/bin/healthpanel-smart \
+        /etc/systemd/system/healthpanel-smart.service \
+        /etc/systemd/system/healthpanel-smart.timer
 fi
 sudo systemctl daemon-reload
-sudo systemctl enable --now battinfo-smart.timer
-sudo /usr/local/bin/battinfo-smart || true   # initial fill
-echo "  SMART-Cache: /var/lib/battinfo/smart.json"
+sudo systemctl enable --now healthpanel-smart.timer
+sudo /usr/local/bin/healthpanel-smart || true   # initial fill
+echo "  SMART-Cache: /var/lib/healthpanel/smart.json"

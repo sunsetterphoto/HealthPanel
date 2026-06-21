@@ -1,0 +1,6 @@
+[Unit]
+Description=healthpanel SMART cache refresh
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/healthpanel-smart

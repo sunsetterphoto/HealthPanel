@@ -28,9 +28,9 @@ PlasmoidItem {
         "B=$(for d in /sys/class/power_supply/*; do " +
         "  [ \"$(cat \"$d/type\" 2>/dev/null)\" = Battery ] && echo \"$d\" && break; done); " +
         "[ -n \"$B\" ] && cat \"$B/uevent\" 2>/dev/null; " +
-        "echo \"BATTINFO_CHARGE_START=$(cat \"$B/charge_control_start_threshold\" 2>/dev/null)\"; " +
-        "echo \"BATTINFO_CHARGE_END=$(cat \"$B/charge_control_end_threshold\" 2>/dev/null)\"; " +
-        "echo \"BATTINFO_CHARGE_BEHAVIOUR=$(cat \"$B/charge_behaviour\" 2>/dev/null)\""
+        "echo \"HP_CHARGE_START=$(cat \"$B/charge_control_start_threshold\" 2>/dev/null)\"; " +
+        "echo \"HP_CHARGE_END=$(cat \"$B/charge_control_end_threshold\" 2>/dev/null)\"; " +
+        "echo \"HP_CHARGE_BEHAVIOUR=$(cat \"$B/charge_behaviour\" 2>/dev/null)\""
 
     P5S.DataSource {
         id: probe
@@ -57,7 +57,7 @@ PlasmoidItem {
         "echo '===CORES==='; for c in /sys/devices/system/cpu/cpu[0-9]*; do echo \"$(basename $c) $(cat $c/topology/core_id 2>/dev/null)\"; done; " +
         "echo '===DF==='; df -B1 --output=source,used,size / | tail -1; " +
         "echo '===TEMPS==='; for h in /sys/class/hwmon/hwmon*; do echo \"$(cat $h/name 2>/dev/null) $(cat $h/temp1_input 2>/dev/null)\"; done; " +
-        "echo '===SMART==='; cat /var/lib/battinfo/smart.json 2>/dev/null"
+        "echo '===SMART==='; cat /var/lib/healthpanel/smart.json 2>/dev/null"
 
     readonly property string _profileGetCmd:
         "busctl --system get-property net.hadess.PowerProfiles " +

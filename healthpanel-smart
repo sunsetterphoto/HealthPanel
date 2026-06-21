@@ -14,7 +14,7 @@ else
     if [ -n "$pk" ]; then DEV="/dev/$pk"; else DEV="$src"; fi
 fi
 
-OUT=/var/lib/battinfo
+OUT=/var/lib/healthpanel
 mkdir -p "$OUT"
 tmp="$(mktemp)"
 

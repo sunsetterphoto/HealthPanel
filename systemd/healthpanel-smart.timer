@@ -1,5 +1,5 @@
 [Unit]
-Description=Refresh battinfo NVMe SMART cache hourly
+Description=Refresh healthpanel SMART cache hourly
 
 [Timer]
 OnBootSec=2min
