@@ -136,9 +136,84 @@ function parseDfLine(line) {
     };
 }
 
+function parseProfile(text) {
+    var m = (text || "").match(/(performance|balanced|power-saver)/);
+    return m ? m[1] : "";
+}
+
+function parseTemps(text) {
+    var cpu = null, disk = null;
+    text.split("\n").forEach(function (line) {
+        var mm = line.match(/^(\S+)\s+(\d+)\s*$/);
+        if (!mm) return;
+        var name = mm[1], c = parseInt(mm[2], 10) / 1000;
+        if (cpu === null && (name === "k10temp" || name === "coretemp" || name === "zenpower")) cpu = c;
+        if (disk === null && name === "nvme") disk = c;
+    });
+    return { cpuTempC: cpu, diskTempC: disk };
+}
+
+function parseSmart(text) {
+    try {
+        var o = JSON.parse((text || "").trim());
+        if (!o || o.valid !== true) return { valid: false };
+        return { valid: true, healthPct: o.healthPct, powerOnHours: o.powerOnHours, tbwTB: o.tbwTB };
+    } catch (e) { return { valid: false }; }
+}
+
+function _sections(stdout) {
+    var out = {}, cur = null, buf = [];
+    (stdout || "").split("\n").forEach(function (line) {
+        var m = line.match(/^===(\w+)===$/);
+        if (m) { if (cur !== null) out[cur] = buf.join("\n"); cur = m[1]; buf = []; }
+        else if (cur !== null) buf.push(line);
+    });
+    if (cur !== null) out[cur] = buf.join("\n");
+    return out;
+}
+
+function parseProbe(stdout) {
+    var s = _sections(stdout);
+    if (!s.STAT1 || !s.STAT2 || !s.MEM) return { valid: false };
+
+    var dt = parseFloat(s.T2) - parseFloat(s.T1);
+    if (!(dt > 0)) dt = 0.5;
+
+    var cpu = cpuPct(parseCpuStat(s.STAT1), parseCpuStat(s.STAT2));
+    var phys = physicalCoreLoads(cpu.cores, parseCoreIds(s.CORES || ""));
+    var mem = memStats(parseMeminfo(s.MEM));
+    var n1 = parseNetDev(s.NET1 || ""), n2 = parseNetDev(s.NET2 || "");
+    var df = parseDfLine(s.DF || "");
+    var dev = deviceBase(df.source || "");
+    var d1 = parseDiskstats(s.DISK1 || "", dev), d2 = parseDiskstats(s.DISK2 || "", dev);
+    var temps = parseTemps(s.TEMPS || "");
+    var smart = parseSmart(s.SMART || "");
+
+    return {
+        valid: true,
+        cpuPct: cpu.total,
+        coreLoads: phys,
+        ramPct: mem.pct, ramUsedGB: mem.usedGB, ramTotalGB: mem.totalGB,
+        swapPct: mem.swapPct, swapUsedGB: mem.swapUsedGB, swapTotalGB: mem.swapTotalGB,
+        diskPct: df.sizeBytes > 0 ? (df.usedBytes / df.sizeBytes) * 100 : 0,
+        diskUsedGB: df.usedBytes / 1073741824,
+        diskTotalGB: df.sizeBytes / 1073741824,
+        diskReadMBps: sectorsRateMBps(d1.readSectors, d2.readSectors, dt),
+        diskWriteMBps: sectorsRateMBps(d1.writeSectors, d2.writeSectors, dt),
+        netDownMBps: rateMBps(n1.rxBytes, n2.rxBytes, dt),
+        netUpMBps: rateMBps(n1.txBytes, n2.txBytes, dt),
+        cpuTempC: temps.cpuTempC,
+        diskTempC: temps.diskTempC,
+        smartValid: smart.valid === true,
+        smartHealthPct: smart.healthPct,
+        smartPowerOnHours: smart.powerOnHours,
+        smartTbwTB: smart.tbwTB
+    };
+}
+
 // ---- UMD export (Node only; ignored by QML) ----
 if (typeof module !== "undefined" && module.exports) {
     module.exports = { parseMeminfo, memStats, parseCpuStat, cpuPct, parseCoreIds,
         physicalCoreLoads, parseNetDev, rateMBps, sectorsRateMBps, parseDiskstats,
-        deviceBase, parseDfLine };
+        deviceBase, parseDfLine, parseProfile, parseTemps, parseSmart, parseProbe };
 }

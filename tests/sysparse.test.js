@@ -126,3 +126,72 @@ test('parseDfLine reads used/size bytes from df -B1 output', () => {
   assert.equal(r.sizeBytes, 2088000000000);
   assert.equal(r.source, '/dev/nvme0n1p7');
 });
+
+test('parseProfile extracts the ppd profile id from busctl output', () => {
+  assert.equal(S.parseProfile('s "power-saver"'), 'power-saver');
+  assert.equal(S.parseProfile('s "performance"'), 'performance');
+  assert.equal(S.parseProfile('garbage'), '');
+});
+
+test('parseTemps picks CPU (k10temp) and disk (nvme) temps in °C', () => {
+  const t = S.parseTemps('AC \nk10temp 38625\nnvme 34000\nacpitz 42000');
+  assert.equal(t.cpuTempC, 38.625);
+  assert.equal(t.diskTempC, 34);
+});
+test('parseTemps returns null when a sensor is absent', () => {
+  const t = S.parseTemps('acpitz 42000');
+  assert.equal(t.cpuTempC, null);
+  assert.equal(t.diskTempC, null);
+});
+test('parseSmart parses cache JSON; invalid/garbage -> {valid:false}', () => {
+  const s = S.parseSmart('{"healthPct":98,"powerOnHours":14520,"tbwTB":47,"valid":true}');
+  assert.equal(s.valid, true); assert.equal(s.healthPct, 98); assert.equal(s.tbwTB, 47);
+  assert.equal(S.parseSmart('').valid, false);
+  assert.equal(S.parseSmart('{"valid":false}').valid, false);
+  assert.equal(S.parseSmart('not json').valid, false);
+});
+
+const PROBE = [
+  '===T1===', '1000.000',
+  '===STAT1===', STAT1,
+  '===NET1===', NETDEV,
+  '===DISK1===', DISK1,
+  '===T2===', '1000.500',
+  '===STAT2===', STAT2,
+  '===NET2===',
+  '    lo: 1000 10 0 0 0 0 0 0 1000 10 0 0 0 0 0 0',
+  ' wlp1s0: 1262144 110 0 0 0 0 0 0 357288 60 0 0 0 0 0 0',  // +262144 rx, +157288 tx over 0.5s
+  '===DISK2===', DISK2,
+  '===MEM===', MEMINFO,
+  '===CORES===', 'cpu0 0\ncpu1 1\ncpu2 0\ncpu3 1',
+  '===DF===', '/dev/nvme0n1p7 831134564352 2088000000000',
+  '===TEMPS===', 'k10temp 38625\nnvme 34000\nacpitz 42000',
+  '===SMART===', '{"healthPct":98,"powerOnHours":14520,"tbwTB":47,"valid":true}',
+].join('\n');
+
+test('parseProbe returns a complete, valid result object', () => {
+  const r = S.parseProbe(PROBE);
+  assert.equal(r.valid, true);
+  assert.ok(Math.abs(r.cpuPct - 50) < 1);
+  assert.equal(r.coreLoads.length, 2);                    // 4 logical -> 2 physical
+  assert.ok(Math.abs(r.ramPct - 57.7) < 0.5);
+  assert.ok(Math.abs(r.swapPct - 5.1) < 0.5);
+  assert.ok(Math.abs(r.netDownMBps - 0.5) < 0.05);
+  assert.ok(Math.abs(r.netUpMBps - 0.3) < 0.05);
+  assert.ok(Math.abs(r.diskReadMBps - 2) < 0.05);
+  assert.ok(Math.abs(r.diskWriteMBps - 2) < 0.05);
+  assert.ok(Math.abs(r.diskPct - 39.8) < 0.5);
+  assert.ok(r.diskTotalGB > 1900 && r.diskTotalGB < 2000);
+  // temps + smart
+  assert.ok(Math.abs(r.cpuTempC - 38.625) < 0.01);
+  assert.equal(r.diskTempC, 34);
+  assert.equal(r.smartValid, true);
+  assert.equal(r.smartHealthPct, 98);
+  assert.equal(r.smartPowerOnHours, 14520);
+  assert.equal(r.smartTbwTB, 47);
+});
+
+test('parseProbe returns valid:false on empty/garbage input', () => {
+  assert.equal(S.parseProbe('').valid, false);
+  assert.equal(S.parseProbe('nothing useful').valid, false);
+});
