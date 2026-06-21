@@ -11,5 +11,28 @@
       <min>1</min>
       <max>30</max>
     </entry>
+
+    <!-- Sichtbarkeit der System-Spalten-Sektionen -->
+    <entry name="showPowerMode" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="showCpu" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="showRam" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="showDisk" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="showNet" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="showSmart" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="showTemps" type="Bool">
+      <default>true</default>
+    </entry>
   </group>
 </kcfg>

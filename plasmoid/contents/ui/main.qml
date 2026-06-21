@@ -122,7 +122,7 @@ PlasmoidItem {
 
     compactRepresentation: Compact {
         battery: root.battery
-        onClicked: root.expanded = !root.expanded
+        onToggleExpanded: root.expanded = !root.expanded
     }
 
     fullRepresentation: MonitorView {

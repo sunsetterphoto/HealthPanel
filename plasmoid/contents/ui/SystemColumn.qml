@@ -1,5 +1,6 @@
 // SystemColumn.qml — left column of the monitor: power-mode + CPU/RAM/disk/net.
 // Bars match BatteryCard's health-bar idiom. Emits setProfile on switch clicks.
+// Each section's visibility is driven by a show* property (bound to widget config).
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
@@ -11,6 +12,15 @@ ColumnLayout {
     id: col
     property var system
     signal setProfile(string name)
+
+    // section visibility (bound to Plasmoid.configuration in MonitorView)
+    property bool showPowerMode: true
+    property bool showCpu: true
+    property bool showRam: true
+    property bool showDisk: true
+    property bool showNet: true
+    property bool showSmart: true
+    property bool showTemps: true
 
     readonly property bool _ok: system !== null && system !== undefined && system.valid === true
     spacing: Kirigami.Units.smallSpacing
@@ -37,7 +47,7 @@ ColumnLayout {
     QQC2.ButtonGroup { id: pmGroup }
     ColumnLayout {
         Layout.fillWidth: true
-        visible: col._ok && col.system.hasPowerProfile
+        visible: col._ok && col.showPowerMode && col.system.hasPowerProfile
         spacing: Kirigami.Units.smallSpacing
         MLabel { text: "Power-Mode" }
         RowLayout {
@@ -64,125 +74,148 @@ ColumnLayout {
         }
     }
 
-    Kirigami.Separator { Layout.fillWidth: true; Layout.topMargin: 2; Layout.bottomMargin: 2 }
+    Kirigami.Separator {
+        Layout.fillWidth: true
+        visible: col._ok && col.showPowerMode && col.system.hasPowerProfile
+    }
 
     // ---- CPU + per-core + temp ----
-    RowLayout {
+    ColumnLayout {
         Layout.fillWidth: true
+        visible: col._ok && col.showCpu
+        spacing: 2
         RowLayout {
-            spacing: Kirigami.Units.smallSpacing
-            MLabel { text: "CPU" }
-            PC3.Label {
-                visible: col._ok && col.system.hasCpuTemp
-                text: col._ok ? col.system.fmtTemp(col.system.cpuTempC) : ""
-                opacity: 0.5
-                font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+            Layout.fillWidth: true
+            RowLayout {
+                spacing: Kirigami.Units.smallSpacing
+                MLabel { text: "CPU" }
+                PC3.Label {
+                    visible: col._ok && col.showTemps && col.system.hasCpuTemp
+                    text: col._ok ? col.system.fmtTemp(col.system.cpuTempC) : ""
+                    opacity: 0.5
+                    font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                }
             }
-        }
-        Item { Layout.fillWidth: true }
-        Row {
-            spacing: 2
-            Repeater {
-                model: col._ok ? col.system.coreLoads : []
-                delegate: Rectangle {
-                    required property var modelData
-                    width: 3; height: 15; radius: 1
-                    color: Qt.rgba(1, 1, 1, 0.12)
-                    Rectangle {
-                        width: parent.width; radius: 1; color: "#3daee9"; opacity: 0.85
-                        height: parent.height * Math.max(0.04, Math.min(1, parent.modelData / 100))
-                        anchors.bottom: parent.bottom
+            Item { Layout.fillWidth: true }
+            Row {
+                spacing: 2
+                Repeater {
+                    model: col._ok ? col.system.coreLoads : []
+                    delegate: Rectangle {
+                        required property var modelData
+                        width: 3; height: 15; radius: 1
+                        color: Qt.rgba(1, 1, 1, 0.12)
+                        Rectangle {
+                            width: parent.width; radius: 1; color: "#3daee9"; opacity: 0.85
+                            height: parent.height * Math.max(0.04, Math.min(1, parent.modelData / 100))
+                            anchors.bottom: parent.bottom
+                        }
                     }
                 }
             }
+            PC3.Label {
+                leftPadding: Kirigami.Units.smallSpacing
+                text: col._ok ? col.system.fmtPct(col.system.cpuPct) : "—"
+                font.bold: true; font.pixelSize: Kirigami.Theme.defaultFont.pixelSize
+            }
         }
-        PC3.Label {
-            leftPadding: Kirigami.Units.smallSpacing
-            text: col._ok ? col.system.fmtPct(col.system.cpuPct) : "—"
-            font.bold: true; font.pixelSize: Kirigami.Theme.defaultFont.pixelSize
-        }
+        Bar { fraction: col._ok ? col.system.cpuPct / 100 : 0; fill: "#3daee9" }
     }
-    Bar { fraction: col._ok ? col.system.cpuPct / 100 : 0; fill: "#3daee9" }
 
     // ---- RAM + swap ----
-    RowLayout {
+    ColumnLayout {
         Layout.fillWidth: true
-        MLabel { text: "RAM" }
-        Item { Layout.fillWidth: true }
-        PC3.Label { text: col._ok ? col.system.fmtPct(col.system.ramPct) : "—"; font.bold: true }
-    }
-    PC3.Label {
-        text: col._ok ? col.system.fmtGB(col.system.ramUsedGB) + " / " + col.system.fmtGB(col.system.ramTotalGB) : ""
-        opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
-    }
-    Bar { fraction: col._ok ? col.system.ramPct / 100 : 0; fill: "#9b6dff" }
-    PC3.Label {
-        visible: col._ok && col.system.hasSwap
-        text: col._ok ? "Swap  " + col.system.fmtGB(col.system.swapUsedGB) + " / " + col.system.fmtGB(col.system.swapTotalGB) + "  " + col.system.fmtPct(col.system.swapPct) : ""
-        opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
-        Layout.topMargin: 4
-    }
-    Bar {
-        visible: col._ok && col.system.hasSwap
-        Layout.preferredHeight: 3
-        fraction: col._ok ? col.system.swapPct / 100 : 0; fill: "#7d5bbe"
+        visible: col._ok && col.showRam
+        spacing: 2
+        RowLayout {
+            Layout.fillWidth: true
+            MLabel { text: "RAM" }
+            Item { Layout.fillWidth: true }
+            PC3.Label { text: col._ok ? col.system.fmtPct(col.system.ramPct) : "—"; font.bold: true }
+        }
+        PC3.Label {
+            text: col._ok ? col.system.fmtGB(col.system.ramUsedGB) + " / " + col.system.fmtGB(col.system.ramTotalGB) : ""
+            opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+        }
+        Bar { fraction: col._ok ? col.system.ramPct / 100 : 0; fill: "#9b6dff" }
+        PC3.Label {
+            visible: col._ok && col.system.hasSwap
+            text: col._ok ? "Swap  " + col.system.fmtGB(col.system.swapUsedGB) + " / " + col.system.fmtGB(col.system.swapTotalGB) + "  " + col.system.fmtPct(col.system.swapPct) : ""
+            opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+            Layout.topMargin: 4
+        }
+        Bar {
+            visible: col._ok && col.system.hasSwap
+            Layout.preferredHeight: 3
+            fraction: col._ok ? col.system.swapPct / 100 : 0; fill: "#7d5bbe"
+        }
     }
 
     // ---- Disk + temp + SMART ----
-    RowLayout {
+    ColumnLayout {
         Layout.fillWidth: true
-        Layout.topMargin: 4
-        MLabel { text: "DISK" }
-        PC3.Label {
-            leftPadding: Kirigami.Units.smallSpacing
-            text: col._ok ? "↓ " + col.system.fmtRate(col.system.diskReadMBps) + "  ↑ " + col.system.fmtRate(col.system.diskWriteMBps) : ""
-            opacity: 0.45; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+        visible: col._ok && col.showDisk
+        spacing: 2
+        RowLayout {
+            Layout.fillWidth: true
+            MLabel { text: "DISK" }
+            PC3.Label {
+                leftPadding: Kirigami.Units.smallSpacing
+                text: col._ok ? "↓ " + col.system.fmtRate(col.system.diskReadMBps) + "  ↑ " + col.system.fmtRate(col.system.diskWriteMBps) : ""
+                opacity: 0.45; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+            }
+            PC3.Label {
+                visible: col._ok && col.showTemps && col.system.hasDiskTemp
+                text: col._ok ? col.system.fmtTemp(col.system.diskTempC) : ""
+                opacity: 0.5; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+            }
+            Item { Layout.fillWidth: true }
+            PC3.Label { text: col._ok ? col.system.fmtPct(col.system.diskPct) : "—"; font.bold: true }
         }
         PC3.Label {
-            visible: col._ok && col.system.hasDiskTemp
-            text: col._ok ? col.system.fmtTemp(col.system.diskTempC) : ""
-            opacity: 0.5; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+            text: col._ok ? col.system.fmtGB(col.system.diskUsedGB) + " / " + col.system.fmtGB(col.system.diskTotalGB) : ""
+            opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
         }
-        Item { Layout.fillWidth: true }
-        PC3.Label { text: col._ok ? col.system.fmtPct(col.system.diskPct) : "—"; font.bold: true }
-    }
-    PC3.Label {
-        text: col._ok ? col.system.fmtGB(col.system.diskUsedGB) + " / " + col.system.fmtGB(col.system.diskTotalGB) : ""
-        opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
-    }
-    Bar { fraction: col._ok ? col.system.diskPct / 100 : 0; fill: "#f1c40f" }
-    RowLayout {
-        Layout.fillWidth: true
-        visible: col._ok && col.system.smartValid
-        spacing: Kirigami.Units.smallSpacing
-        PC3.Label {
-            text: col._ok ? col.system.fmtPct(col.system.smartHealthPct) : ""
-            color: "#2ecc71"; font.bold: true
-            font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+        Bar { fraction: col._ok ? col.system.diskPct / 100 : 0; fill: "#f1c40f" }
+        RowLayout {
+            Layout.fillWidth: true
+            visible: col._ok && col.showSmart && col.system.smartValid
+            spacing: Kirigami.Units.smallSpacing
+            PC3.Label {
+                text: col._ok ? col.system.fmtPct(col.system.smartHealthPct) : ""
+                color: "#2ecc71"; font.bold: true
+                font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+            }
+            PC3.Label { text: "Health"; opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
+            PC3.Label { text: "·"; opacity: 0.3; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
+            PC3.Label { text: col._ok ? col.system.fmtHours(col.system.smartPowerOnHours) : ""; opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
+            PC3.Label { text: "·"; opacity: 0.3; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
+            PC3.Label { text: col._ok ? col.system.fmtTbw(col.system.smartTbwTB) : ""; opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
+            Item { Layout.fillWidth: true }
         }
-        PC3.Label { text: "Health"; opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
-        PC3.Label { text: "·"; opacity: 0.3; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
-        PC3.Label { text: col._ok ? col.system.fmtHours(col.system.smartPowerOnHours) : ""; opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
-        PC3.Label { text: "·"; opacity: 0.3; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
-        PC3.Label { text: col._ok ? col.system.fmtTbw(col.system.smartTbwTB) : ""; opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
-        Item { Layout.fillWidth: true }
     }
 
     // ---- Netz ----
-    MLabel { text: "NETZ"; Layout.topMargin: 4 }
-    RowLayout {
+    ColumnLayout {
         Layout.fillWidth: true
-        spacing: Kirigami.Units.largeSpacing
-        ColumnLayout {
-            spacing: 0
-            PC3.Label { text: col._ok ? "↓ " + col.system.fmtRate(col.system.netDownMBps) : "—"; font.bold: true; font.pixelSize: Kirigami.Theme.defaultFont.pixelSize }
-            PC3.Label { text: "Down"; opacity: 0.5; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
-        }
-        ColumnLayout {
-            spacing: 0
-            PC3.Label { text: col._ok ? "↑ " + col.system.fmtRate(col.system.netUpMBps) : "—"; font.bold: true; font.pixelSize: Kirigami.Theme.defaultFont.pixelSize }
-            PC3.Label { text: "Up"; opacity: 0.5; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
+        visible: col._ok && col.showNet
+        spacing: 2
+        MLabel { text: "NETZ" }
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Kirigami.Units.largeSpacing
+            ColumnLayout {
+                spacing: 0
+                PC3.Label { text: col._ok ? "↓ " + col.system.fmtRate(col.system.netDownMBps) : "—"; font.bold: true; font.pixelSize: Kirigami.Theme.defaultFont.pixelSize }
+                PC3.Label { text: "Down"; opacity: 0.5; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
+            }
+            ColumnLayout {
+                spacing: 0
+                PC3.Label { text: col._ok ? "↑ " + col.system.fmtRate(col.system.netUpMBps) : "—"; font.bold: true; font.pixelSize: Kirigami.Theme.defaultFont.pixelSize }
+                PC3.Label { text: "Up"; opacity: 0.5; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
+            }
         }
     }
+
     Item { Layout.fillHeight: true }
 }

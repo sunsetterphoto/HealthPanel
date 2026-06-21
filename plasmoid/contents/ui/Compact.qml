@@ -7,7 +7,7 @@ import org.kde.plasma.components as PC3
 MouseArea {
     id: compact
     property var battery
-    signal clicked()
+    signal toggleExpanded()
 
     readonly property bool _ready: compact.battery !== null && compact.battery !== undefined
     readonly property bool _ok: _ready && compact.battery.present === true
@@ -16,7 +16,7 @@ MouseArea {
     implicitHeight: row.implicitHeight
 
     hoverEnabled: true
-    onClicked: compact.clicked()
+    onClicked: compact.toggleExpanded()
 
     RowLayout {
         id: row
