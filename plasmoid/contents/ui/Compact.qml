@@ -1,6 +1,6 @@
-// Compact representation — shown when the widget lives in a panel or as a small
-// desktop icon. Reports its size via Layout.* so the panel grants room for the
-// label (a bare MouseArea would otherwise be squeezed to an icon-only square).
+// Compact representation — shown in a panel or as a small desktop icon.
+// Default: battery icon (charge state) + power-mode indicator + charge %.
+// Reports its size via Layout.* so the panel grants room for the label.
 import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
@@ -11,11 +11,13 @@ import org.kde.plasma.core as PlasmaCore
 MouseArea {
     id: compact
     property var battery
+    property var system
     signal toggleExpanded()
 
     readonly property bool _ready: compact.battery !== null && compact.battery !== undefined
     readonly property bool _ok: _ready && compact.battery.present === true
-    // vertical panel → stack icon over text; horizontal panel / desktop → side by side
+    readonly property bool _hasProfile: compact.system !== null && compact.system !== undefined
+        && compact.system.hasPowerProfile === true
     readonly property bool _vertical: Plasmoid.formFactor === PlasmaCore.Types.Vertical
 
     implicitWidth: row.implicitWidth + Kirigami.Units.smallSpacing * 2
@@ -48,16 +50,25 @@ MouseArea {
             implicitHeight: Kirigami.Units.iconSizes.small
         }
 
-        PC3.Label {
-            text: compact._ok ? compact.battery.capacityPct + "%" : "—"
-            font.pixelSize: Kirigami.Theme.defaultFont.pixelSize
+        // power-mode indicator (KDE-style power-profile icon)
+        Kirigami.Icon {
+            visible: compact._hasProfile
+            source: {
+                if (!compact._hasProfile) return ""
+                var p = compact.system.powerProfile
+                if (p === "performance") return "power-profile-performance"
+                if (p === "power-saver") return "power-profile-power-saver"
+                return "power-profile-balanced"
+            }
             Layout.alignment: Qt.AlignCenter
+            implicitWidth:  Math.round(Kirigami.Units.iconSizes.small * 0.7)
+            implicitHeight: Math.round(Kirigami.Units.iconSizes.small * 0.7)
+            opacity: 0.85
         }
 
         PC3.Label {
-            text: compact._ok ? "· " + compact.battery.fmtPct(compact.battery.healthPct, 0) : ""
-            opacity: 0.7
-            visible: compact._ok && !compact._vertical
+            text: compact._ok ? compact.battery.capacityPct + "%" : "—"
+            font.pixelSize: Kirigami.Theme.defaultFont.pixelSize
             Layout.alignment: Qt.AlignCenter
         }
     }

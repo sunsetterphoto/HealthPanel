@@ -124,6 +124,7 @@ PlasmoidItem {
 
     compactRepresentation: Compact {
         battery: root.battery
+        system: root.system
         onToggleExpanded: root.expanded = !root.expanded
     }
 
