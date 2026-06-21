@@ -39,7 +39,7 @@ const STAT1 = [
 // second snapshot: total jiffies +1000, of which idle +500 -> 50% busy overall.
 const STAT2 = [
   'cpu  1375 0 625 8400 300 0 0 0 0 0',
-  'cpu0 350 0 175 2000 50 0 0 0 0 0',   // +400 total, +0 idle -> ~100%
+  'cpu0 350 0 175 2000 50 0 0 0 0 0',   // +150 total, +0 idle -> 100%
   'cpu1 250 0 125 2200 50 0 0 0 0 0',   // +200 total, +200 idle -> 0%
   'cpu2 300 0 150 2100 75 0 0 0 0 0',   // +200 total, +125 idle -> ~37.5%
   'cpu3 300 0 150 2100 75 0 0 0 0 0',
