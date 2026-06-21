@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import org.kde.plasma.plasmoid
 import org.kde.plasma.plasma5support as P5S
@@ -5,8 +7,12 @@ import org.kde.plasma.plasma5support as P5S
 PlasmoidItem {
     id: root
 
+    // Expose the data object as a root property so the representation
+    // Components (which sit in their own scope) can reference it via root.battery.
+    property alias battery: batteryData
+
     BatteryData {
-        id: battery
+        id: batteryData
         refreshSeconds: Plasmoid.configuration.refreshSeconds
     }
 
@@ -50,12 +56,12 @@ PlasmoidItem {
         : (battery.error || "kein Akku gefunden")
 
     compactRepresentation: Compact {
-        battery: battery
+        battery: root.battery
         onClicked: root.expanded = !root.expanded
     }
 
     fullRepresentation: BatteryCard {
-        battery: battery
+        battery: root.battery
     }
 
     Plasmoid.icon: {

@@ -9,6 +9,9 @@ MouseArea {
     property var battery
     signal clicked()
 
+    readonly property bool _ready: compact.battery !== null && compact.battery !== undefined
+    readonly property bool _ok: _ready && compact.battery.present === true
+
     implicitWidth: row.implicitWidth + Kirigami.Units.smallSpacing * 2
     implicitHeight: row.implicitHeight
 
@@ -22,9 +25,9 @@ MouseArea {
 
         Kirigami.Icon {
             source: {
-                if (!battery.present) return "battery-missing"
-                var c = battery.capacityPct
-                var charging = battery.status === "Charging"
+                if (!compact._ok) return "battery-missing"
+                var c = compact.battery.capacityPct
+                var charging = compact.battery.status === "Charging"
                 if (c >= 95) return charging ? "battery-full-charging" : "battery-full"
                 if (c >= 60) return charging ? "battery-good-charging" : "battery-good"
                 if (c >= 30) return charging ? "battery-low-charging"  : "battery-low"
@@ -35,14 +38,14 @@ MouseArea {
         }
 
         PC3.Label {
-            text: battery.present ? battery.capacityPct + "%" : "—"
+            text: compact._ok ? compact.battery.capacityPct + "%" : "—"
             font.pixelSize: Kirigami.Theme.defaultFont.pixelSize
         }
 
         PC3.Label {
-            text: battery.present ? "· " + battery.fmtPct(battery.healthPct, 0) : ""
+            text: compact._ok ? "· " + compact.battery.fmtPct(compact.battery.healthPct, 0) : ""
             opacity: 0.7
-            visible: battery.present
+            visible: compact._ok
         }
     }
 }
