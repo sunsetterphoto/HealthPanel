@@ -1,30 +1,31 @@
 // panelmeta.js — metadata for the configurable panel icons.
 // Each icon has a type and a list of text-parameter keys to show next to it.
 // Shared by Compact.qml (rendering) and configPanel.qml (settings UI).
+// Labels are English source strings; the settings UI translates them via i18n.js.
 
 function types() {
     return [
-        { type: "battery", label: "Akku", icon: "battery", texts: [
-            { k: "charge", l: "Ladung %" },
+        { type: "battery", label: "Battery", icon: "battery", texts: [
+            { k: "charge", l: "Charge %" },
             { k: "health", l: "Wear/Health %" },
-            { k: "power",  l: "Leistung (W)" }
+            { k: "power",  l: "Power (W)" }
         ] },
         { type: "cpu", label: "CPU", icon: "cpu", texts: [
-            { k: "load", l: "Last %" },
-            { k: "temp", l: "Temperatur" }
+            { k: "load", l: "Load %" },
+            { k: "temp", l: "Temperature" }
         ] },
         { type: "ram", label: "RAM", icon: "memory", texts: [
-            { k: "usage", l: "Belegung %" },
-            { k: "used",  l: "Benutzt (GB)" },
+            { k: "usage", l: "Usage %" },
+            { k: "used",  l: "Used (GB)" },
             { k: "swap",  l: "Swap %" }
         ] },
-        { type: "disk", label: "Festplatte", icon: "drive-harddisk", texts: [
-            { k: "usage", l: "Belegung %" },
-            { k: "temp",  l: "Temperatur" },
-            { k: "read",  l: "Lesen" },
-            { k: "write", l: "Schreiben" }
+        { type: "disk", label: "Disk", icon: "drive-harddisk", texts: [
+            { k: "usage", l: "Usage %" },
+            { k: "temp",  l: "Temperature" },
+            { k: "read",  l: "Read" },
+            { k: "write", l: "Write" }
         ] },
-        { type: "net", label: "Netzwerk", icon: "network-wireless", texts: [
+        { type: "net", label: "Network", icon: "network-wireless", texts: [
             { k: "down", l: "Download" },
             { k: "up",   l: "Upload" }
         ] }

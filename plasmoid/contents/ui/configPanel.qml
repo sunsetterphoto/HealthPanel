@@ -3,28 +3,37 @@ import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import "panelmeta.js" as PanelMeta
+import "i18n.js" as I18n
 
 ColumnLayout {
     id: page
 
     property string cfg_panelLayout: '[{"type":"battery","texts":["charge"]}]'
     property string cfg_panelLayoutDefault: '[{"type":"battery","texts":["charge"]}]'
+    property string cfg_language: "system"
+    function tr(s) { return I18n.tr(I18n.resolve(page.cfg_language), s) }
 
     // working copy of the icon list; commit() writes it back to the config string
     property var items: PanelMeta.parseLayout(cfg_panelLayout)
-    readonly property var typeList: PanelMeta.types()
+    // type list with translated labels for the icon dropdown (matched by `type`)
+    readonly property var typeList: {
+        var ts = PanelMeta.types(), out = []
+        for (var i = 0; i < ts.length; i++)
+            out.push({ type: ts[i].type, label: page.tr(ts[i].label), icon: ts[i].icon, texts: ts[i].texts })
+        return out
+    }
 
     function commit(a) { items = a; cfg_panelLayout = PanelMeta.serialize(a); }
     function typeIndex(t) { for (var i = 0; i < typeList.length; i++) if (typeList[i].type === t) return i; return 0; }
 
     spacing: Kirigami.Units.smallSpacing
 
-    Kirigami.Heading { level: 3; text: i18n("Panel-Icons") }
+    Kirigami.Heading { level: 3; text: page.tr("Panel icons") }
     QQC2.Label {
         Layout.fillWidth: true
         wrapMode: Text.WordWrap
         opacity: 0.7
-        text: i18n("Lege fest, welche Icons in der Leiste / Kompaktansicht erscheinen und welche Werte als Text daneben stehen. Reihenfolge per ↑ ↓.")
+        text: page.tr("Choose which icons appear in the panel / compact view and which values are shown as text. Reorder with ↑ ↓.")
     }
 
     Repeater {
@@ -43,7 +52,7 @@ ColumnLayout {
 
                 RowLayout {
                     Layout.fillWidth: true
-                    QQC2.Label { text: i18n("Icon:") }
+                    QQC2.Label { text: page.tr("Icon:") }
                     QQC2.ComboBox {
                         id: typeBox
                         textRole: "label"
@@ -82,7 +91,7 @@ ColumnLayout {
                 }
 
                 QQC2.Label {
-                    text: i18n("Text daneben:")
+                    text: page.tr("Text beside it:")
                     opacity: 0.7
                     font.pixelSize: Kirigami.Theme.smallFont.pixelSize
                 }
@@ -93,7 +102,7 @@ ColumnLayout {
                         model: PanelMeta.typeMeta(iconCard.cfgType).texts
                         delegate: QQC2.Button {
                             required property var modelData
-                            text: modelData.l
+                            text: page.tr(modelData.l)
                             checkable: true
                             checked: iconCard.cfgTexts.indexOf(modelData.k) >= 0
                             onClicked: {
@@ -112,7 +121,7 @@ ColumnLayout {
     }
 
     QQC2.Button {
-        text: i18n("Icon hinzufügen")
+        text: page.tr("Add icon")
         icon.name: "list-add"
         Layout.topMargin: Kirigami.Units.smallSpacing
         onClicked: {

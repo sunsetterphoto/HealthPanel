@@ -51,8 +51,19 @@ var DE = {
     "Show system column": "System-Spalte anzeigen",
     "Show battery column": "Akku-Spalte anzeigen",
     "Show controls column": "Steuer-Spalte anzeigen",
+    "System column (left):": "System-Spalte (links):",
+    "Battery column (middle):": "Akku-Spalte (Mitte):",
+    "Controls column (right):": "Steuer-Spalte (rechts):",
+    "Show column": "Spalte anzeigen",
+    "Show controls": "Steuerung anzeigen",
     "Shows:": "Zeigt:",
     "Style:": "Stil:",
+    "Style — CPU:": "Stil — CPU:",
+    "Style — RAM:": "Stil — RAM:",
+    "Style — Disk:": "Stil — Festplatte:",
+    "Style — Network:": "Stil — Netzwerk:",
+    "Style — GPU load:": "Stil — GPU-Last:",
+    "Style — VRAM:": "Stil — VRAM:",
     "CPU + cores": "CPU + Kerne",
     "Show logical cores (threads) instead of physical": "Logische Kerne (Threads) statt physische",
     "GPU + VRAM": "GPU + VRAM",
@@ -72,6 +83,7 @@ var DE = {
     "Battery cycles": "Ladezyklen",
     "Capacity (designed / full / remaining)": "Kapazität (Auslegung / Voll / Verbleibend)",
     "Live values (status / power / voltage)": "Live-Werte (Status / Leistung / Spannung)",
+    "Serial number": "Seriennummer",
     "Estimated remaining time (hours)": "Geschätzte Restlaufzeit (Stunden)",
     "Vendor charge thresholds": "Hersteller-Ladeschwellen",
     // --- config: controls ---
@@ -108,4 +120,12 @@ var DE = {
 function tr(lang, s) {
     if (lang === "de" && DE[s] !== undefined) return DE[s];
     return s;
+}
+
+// Resolve a config language value ("system" | "de" | "en") to an effective
+// "de"/"en". "system" follows the desktop locale. Used by the config pages,
+// which (unlike the widget) read the raw config value directly.
+function resolve(cfgLang) {
+    if (cfgLang === "de" || cfgLang === "en") return cfgLang;
+    return Qt.locale().name.indexOf("de") === 0 ? "de" : "en";
 }

@@ -8,8 +8,23 @@ ConfigModel {
         source: "configGeneral.qml"
     }
     ConfigCategory {
-        name: i18n("Panel-Icons")
-        icon: "computer"
+        name: i18n("System")
+        icon: "computer-symbolic"
+        source: "configSystem.qml"
+    }
+    ConfigCategory {
+        name: i18n("Battery / Energy")
+        icon: "battery"
+        source: "configBattery.qml"
+    }
+    ConfigCategory {
+        name: i18n("Controls")
+        icon: "settings-configure"
+        source: "configControls.qml"
+    }
+    ConfigCategory {
+        name: i18n("Panel icons")
+        icon: "view-list-icons"
         source: "configPanel.qml"
     }
 }
