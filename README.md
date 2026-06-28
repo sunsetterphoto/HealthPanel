@@ -9,23 +9,27 @@ column — in a single tidy popup, with a configurable panel/compact view.
 
 ![HealthPanel](screenshots/HealthPanelWidget.png)
 
-The three columns are independent — each can be hidden, the popup resizes to fit
-what's shown, and it can be **pinned** to stay open.
+Every part of the popup — the three columns, the system sections, and the battery
+detail blocks — can be **reordered and shown/hidden** to taste; the popup resizes
+to fit what's shown and can be **pinned** to stay open.
 
 ## Features
 
 ### System column — live load
 
-Each section can be hidden; each metric has a selectable display style
+Each section can be reordered or hidden; each metric has a selectable display style
 (**bar · ring · sparkline**):
 
 - **Power profile** — Performance / Balanced / Power Saver, **click to switch live**
   (via `power-profiles-daemon` or `tuned-ppd`; no root, no password prompt)
 - **CPU** — total load + per-core mini-bars (physical cores or logical threads) +
-  temperature
-- **GPU + VRAM** — load, VRAM usage and temperature (AMD `amdgpu`, when present)
+  temperature + power draw
+- **GPU + VRAM** — load, VRAM usage, temperature, power and voltage (AMD `amdgpu`,
+  when present)
 - **RAM + Swap** — usage in % and GB
 - **Disk** — root-filesystem usage, read/write throughput, temperature
+  (Composite + the extra NVMe "Sensor 1")
+- **Fans** — per-fan speed in RPM
 - **Network** — down/up throughput (text or sparkline)
 - **SSD SMART** — health, power-on hours, terabytes written (NVMe and SATA)
 
@@ -72,12 +76,24 @@ all **root-free**, via the standard KDE / PipeWire D-Bus services:
 - **Volume + mute**
 - Quick jump-offs: **System Settings**, **System Monitor**, **Widget Settings**
 
+### Customizable layout
+
+Arrange the popup exactly how you like it:
+
+- **Reorder and show/hide** the system sections, the battery detail blocks, and the
+  three main columns — each from its own settings tab (↑ ↓ to move, a checkbox to
+  show/hide).
+- The battery's charge bar and health stay pinned at the top; everything below is
+  yours to arrange.
+- **Reset to defaults** restores the original order and visibility in one click.
+
 ### Panel / compact view
 
-In the panel the widget shows a configurable row of icons — any of
-battery / CPU / RAM / disk / network — each with optional value text beside it.
-The battery icon also encodes the active power profile, KDE-style (leaf =
-power-saver, rocket = performance).
+In the panel the widget shows a configurable row of entries — battery, CPU, GPU,
+RAM, disk, network or fan — each with optional value text beside it. Each entry's
+**icon can be hidden individually**; entries shown as text-only are separated by a
+thin divider. The battery icon also encodes the active power profile, KDE-style
+(leaf = power-saver, rocket = performance).
 
 ![Panel / compact view](screenshots/PanelIcons.png)
 
@@ -125,15 +141,19 @@ re-labelled with `restorecon` (a home-symlinked system unit would be rejected).
 
 ## Configuration
 
-Right-click the widget → *Configure HealthPanel*. The settings are split into one
-page per column, plus the panel layout:
+Right-click the widget → *Configure HealthPanel*. Each tab owns the order and
+visibility of its own part of the popup, alongside its detail options:
 
-- **General** — refresh interval and UI language (System / Deutsch / English)
-- **System** — which sections show, physical vs. logical cores, and the display
-  style per metric (bar · ring · sparkline; network: text · sparkline)
-- **Battery / Energy** — which battery detail blocks show
+- **General** — refresh interval, UI language (System / Deutsch / English), and the
+  **order/visibility of the three columns**
+- **System** — the **order/visibility of the system sections**, plus detail toggles
+  (logical cores, SMART, temperatures, power draw, GPU voltage, NVMe Sensor 1) and
+  the display style per metric (bar · ring · sparkline; network: text · sparkline).
+  A **Reset to defaults** button restores every layout in one click.
+- **Battery / Energy** — the **order/visibility of the battery detail blocks**
 - **Controls** — which quick-settings rows show
-- **Panel icons** — the icons in the panel/compact view and their value texts
+- **Panel icons** — the entries in the panel/compact view, their value texts, and a
+  per-entry **show icon** toggle
 
 ![System settings](screenshots/WidgetSettings1.png)
 
@@ -190,8 +210,11 @@ well expose them:**
 
 ## Architecture
 
-- All parsing/maths lives in pure JS (`plasmoid/contents/ui/sysparse.js`), shared
-  by QML and Node — unit-tested with `node --test tests/sysparse.test.js`.
+- All parsing/maths lives in pure JS — `sysparse.js` for the sensors and
+  `layoutmeta.js` for the configurable layout — shared by QML and Node and
+  unit-tested with `node --test tests/`.
+- The expanded view renders data-driven from three small JSON layout settings, so
+  reordering or hiding any section/block/column is just an edit to that list.
 - `SystemData.qml`, `BatteryData.qml` and `ControlData.qml` feed probe output
   into the UI; `SystemColumn.qml`, `BatteryCard.qml` and `ControlColumn.qml`
   render the three columns, and `MonitorView.qml` combines them as the full
