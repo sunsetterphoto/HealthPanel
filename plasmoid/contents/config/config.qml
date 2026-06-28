@@ -27,4 +27,9 @@ ConfigModel {
         icon: "view-list-icons"
         source: "configPanel.qml"
     }
+    ConfigCategory {
+        name: i18n("Layout")
+        icon: "view-list-details"
+        source: "configLayout.qml"
+    }
 }

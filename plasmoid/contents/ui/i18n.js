@@ -125,6 +125,15 @@ var DE = {
     "Power draw (CPU / SoC / GPU)": "Leistungsaufnahme (CPU / SoC / GPU)",
     "GPU voltage": "GPU-Spannung",
     "NVMe Sensor 1 temperature": "NVMe Sensor 1 Temperatur",
+    // --- config: layout ---
+    "Layout": "Layout",
+    "Reorder and show/hide the parts of the expanded view. Use ↑ ↓ to move.": "Sortiere die Bereiche der erweiterten Ansicht und blende sie ein/aus. Mit ↑ ↓ verschieben.",
+    "Reset to defaults": "Auf Standard zurücksetzen",
+    "System column": "System-Spalte",
+    "Battery column": "Akku-Spalte",
+    "Columns": "Spalten",
+    "Remaining time": "Restzeit",
+    "Controls column": "Steuer-Spalte",
     // --- config category names ---
     "Pinned — stays open": "Angeheftet — bleibt offen",
     "Pin": "Anheften",
