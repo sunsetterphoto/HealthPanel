@@ -33,6 +33,7 @@ QtObject {
     property real voltageNowV: 0
     property real voltageMinDesignV: 0
     property real powerNowW: 0
+    property bool hasPowerNow: false
 
     // wear
     property int cycleCount: 0
@@ -89,6 +90,7 @@ QtObject {
         voltageNowV        = _toFloat(p["POWER_SUPPLY_VOLTAGE_NOW"]) / 1e6
         voltageMinDesignV  = _toFloat(p["POWER_SUPPLY_VOLTAGE_MIN_DESIGN"]) / 1e6
         powerNowW          = _toFloat(p["POWER_SUPPLY_POWER_NOW"]) / 1e6
+        hasPowerNow = (p["POWER_SUPPLY_POWER_NOW"] !== undefined && p["POWER_SUPPLY_POWER_NOW"] !== "")
 
         cycleCount         = _toInt(p["POWER_SUPPLY_CYCLE_COUNT"])
         healthPct = energyFullDesignWh > 0
@@ -111,7 +113,7 @@ QtObject {
     // ---- display helpers ----
     function fmtWh(v)   { return (v > 0) ? v.toFixed(2) + " Wh" : "n/a" }
     function fmtV(v)    { return (v > 0) ? v.toFixed(2) + " V"  : "n/a" }
-    function fmtW(v)    { return (v > 0) ? v.toFixed(2) + " W"  : "n/a" }
+    function fmtW(v)    { return (v >= 0 && !isNaN(v)) ? v.toFixed(2) + " W" : "n/a" }
     function fmtPct(v, d) {
         d = (d === undefined) ? 1 : d
         return (v > 0) ? v.toFixed(d) + "%" : "n/a"

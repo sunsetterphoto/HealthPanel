@@ -59,7 +59,7 @@ MouseArea {
             if (!compact._ok) return ""
             if (key === "charge") return b.capacityPct + "%"
             if (key === "health") return Math.round(b.healthPct) + "%"
-            if (key === "power")  return b.fmtW(b.powerNowW)
+            if (key === "power")  return b.hasPowerNow ? b.fmtW(b.powerNowW) : "n/a"
             return ""
         }
         if (s === null || s === undefined || s.valid !== true) return ""

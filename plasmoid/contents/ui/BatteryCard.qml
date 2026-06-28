@@ -204,7 +204,7 @@ Item {
                 }
 
                 PC3.Label { text: card.tr("Power draw"); opacity: 0.8; visible: card.showLive }
-                PC3.Label { text: card.battery.fmtW(card.battery.powerNowW); Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight; visible: card.showLive }
+                PC3.Label { text: card.battery.hasPowerNow ? card.battery.fmtW(card.battery.powerNowW) : "n/a"; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight; visible: card.showLive }
 
                 PC3.Label { text: card.tr("Voltage"); opacity: 0.8; visible: card.showLive }
                 PC3.Label {

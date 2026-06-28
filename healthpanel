@@ -29,7 +29,7 @@ die() { printf '%s\n' "$*" >&2; exit 1; }
 read_sys() { local f="$BAT_DIR/$1"; [[ -r "$f" ]] && cat "$f" 2>/dev/null || true; }
 to_unit() {
     local raw="${1:-}" suffix="${2:-}"
-    [[ -z "$raw" || "$raw" == "0" ]] && { printf 'n/a'; return; }
+    [[ -z "$raw" ]] && { printf 'n/a'; return; }
     awk -v v="$raw" -v s="$suffix" 'BEGIN{ printf "%.2f %s", v/1000000, s }'
 }
 percent_of() {
@@ -250,7 +250,11 @@ render_battery() {
         printf ' — %s %s' "$(human_duration "$TIME_REMAIN")" "$label"
     fi
     printf '\n'
-    kv "Power draw" "$(to_unit "$P_NOW" W)"
+    local pdraw; pdraw="$(to_unit "$P_NOW" W)"
+    if [[ "$P_NOW" == "0" && ( "$STATUS" == "Full" || "$STATUS" == "Not charging" ) ]]; then
+        pdraw="$pdraw (on AC)"
+    fi
+    kv "Power draw" "$pdraw"
     kv "Voltage"    "$(to_unit "$V_NOW" V)  (design min $(to_unit "$V_MIN_DESIGN" V))"
     kv "Technology" "${TECH:-n/a}"
     kv "Serial"     "${SERIAL:-n/a}"
