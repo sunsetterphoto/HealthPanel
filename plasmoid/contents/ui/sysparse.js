@@ -237,9 +237,22 @@ function parseProbe(stdout) {
     };
 }
 
+function parseRaplPower(rapl1, rapl2, raplMax, dtSec) {
+    var e1 = parseInt((rapl1 || "").trim(), 10);
+    var e2 = parseInt((rapl2 || "").trim(), 10);
+    if (isNaN(e1) || isNaN(e2) || !(dtSec > 0)) return null;
+    var de = e2 - e1;
+    if (de < 0) {
+        var mx = parseInt((raplMax || "").trim(), 10);
+        if (!isNaN(mx) && mx > 0) de += mx;   // wraparound
+        else return null;
+    }
+    return (de / dtSec) / 1e6;   // µJ -> W
+}
+
 // ---- UMD export (Node only; ignored by QML) ----
 if (typeof module !== "undefined" && module.exports) {
     module.exports = { parseMeminfo, memStats, parseCpuStat, cpuPct, parseCoreIds,
         physicalCoreLoads, parseNetDev, rateMBps, sectorsRateMBps, parseDiskstats,
-        deviceBase, parseDfLine, parseProfile, parseTemps, parseSmart, parseGpu, parseProbe };
+        deviceBase, parseDfLine, parseProfile, parseTemps, parseSmart, parseGpu, parseRaplPower, parseProbe };
 }

@@ -206,3 +206,17 @@ test('parseGpu reads busy% and VRAM usage; invalid when absent', () => {
   assert.ok(Math.abs(g.vramPct - 22.0) < 0.5);
   assert.equal(S.parseGpu('').valid, false);
 });
+
+test('parseRaplPower computes watts from energy_uj delta over dt', () => {
+  // 6,000,000 µJ over 0.5 s = 12 W
+  assert.ok(Math.abs(S.parseRaplPower('1000000', '7000000', '262143328850', 0.5) - 12) < 1e-9);
+});
+test('parseRaplPower handles counter wraparound using raplMax', () => {
+  // wrap: e2 < e1; de = (max - e1) + e2 = (100 - 90) + 5 = 15 µJ over 1 s
+  assert.ok(Math.abs(S.parseRaplPower('90', '5', '100', 1) - 15e-6) < 1e-12);
+});
+test('parseRaplPower returns null when energy is unreadable or dt<=0', () => {
+  assert.equal(S.parseRaplPower('', '7000000', '100', 0.5), null);
+  assert.equal(S.parseRaplPower('1000000', '7000000', '100', 0), null);
+  assert.equal(S.parseRaplPower('x', 'y', '100', 0.5), null);
+});
