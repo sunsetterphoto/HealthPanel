@@ -250,3 +250,28 @@ test('classifyGpuPower: empty section -> both null', () => {
   assert.equal(c.socW, null);
   assert.equal(c.gpuW, null);
 });
+
+test('parseFans picks the chip with the most fans; computes max', () => {
+  const f = S.parseFans('thinkpad fan1=4385\nthinkpad fan2=4379\nacpi_fan fan1=4200');
+  assert.deepEqual(f.fans, [4385, 4379]);
+  assert.equal(f.maxRpm, 4385);
+});
+test('parseFans returns empty when no fans present', () => {
+  const f = S.parseFans('');
+  assert.deepEqual(f.fans, []);
+  assert.equal(f.maxRpm, 0);
+});
+test('parseFans compacts non-contiguous fan indices (no phantom zero)', () => {
+  const f = S.parseFans('thinkpad fan1=4000\nthinkpad fan3=4200');
+  assert.deepEqual(f.fans, [4000, 4200]);
+  assert.equal(f.maxRpm, 4200);
+});
+test('parseVolts reads vddgfx in volts; null when absent', () => {
+  assert.ok(Math.abs(S.parseVolts('vddgfx=1285\nvddnb=693').gpuVoltageV - 1.285) < 1e-9);
+  assert.equal(S.parseVolts('vddnb=693').gpuVoltageV, null);
+});
+test('parseTempSensors maps chip:label -> °C', () => {
+  const t = S.parseTempSensors('nvme:Composite=38850\nnvme:Sensor1=52850\nnvme:Sensor2=38850');
+  assert.equal(t['nvme:Sensor1'], 52.85);
+  assert.equal(t['nvme:Composite'], 38.85);
+});

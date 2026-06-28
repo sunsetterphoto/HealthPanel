@@ -273,9 +273,46 @@ function classifyGpuPower(ps) {
     return { socW: socW, gpuW: gpuW };
 }
 
+function parseFans(text) {
+    var chips = {};   // name -> [rpm,...] indexed by fan number-1
+    (text || "").split("\n").forEach(function (line) {
+        var m = line.match(/^(\S+)\s+fan(\d+)=(\d+)/);
+        if (!m) return;
+        var name = m[1], idx = parseInt(m[2], 10), rpm = parseInt(m[3], 10);
+        if (!chips[name]) chips[name] = [];
+        chips[name][idx - 1] = rpm;
+    });
+    var best = [], bestLen = 0;
+    Object.keys(chips).forEach(function (n) {
+        var present = chips[n].filter(function (x) { return x !== undefined; });
+        if (present.length > bestLen) { bestLen = present.length; best = present; }
+    });
+    var fans = best;   // already compacted: only actually-reported readings, no phantom 0
+    var max = 0; fans.forEach(function (r) { if (r > max) max = r; });
+    return { fans: fans, maxRpm: max };
+}
+
+function parseVolts(text) {
+    var gpuV = null;
+    (text || "").split("\n").forEach(function (line) {
+        var m = line.match(/^vddgfx=(\d+)/);
+        if (m) gpuV = parseInt(m[1], 10) / 1000;
+    });
+    return { gpuVoltageV: gpuV };
+}
+
+function parseTempSensors(text) {
+    var out = {};
+    (text || "").split("\n").forEach(function (line) {
+        var m = line.match(/^(\S+?):(\S+?)=(\d+)/);
+        if (m) out[m[1] + ":" + m[2]] = parseInt(m[3], 10) / 1000;
+    });
+    return out;
+}
+
 // ---- UMD export (Node only; ignored by QML) ----
 if (typeof module !== "undefined" && module.exports) {
     module.exports = { parseMeminfo, memStats, parseCpuStat, cpuPct, parseCoreIds,
         physicalCoreLoads, parseNetDev, rateMBps, sectorsRateMBps, parseDiskstats,
-        deviceBase, parseDfLine, parseProfile, parseTemps, parseSmart, parseGpu, parseRaplPower, parsePowerSection, classifyGpuPower, parseProbe };
+        deviceBase, parseDfLine, parseProfile, parseTemps, parseSmart, parseGpu, parseRaplPower, parsePowerSection, classifyGpuPower, parseFans, parseVolts, parseTempSensors, parseProbe };
 }
