@@ -129,6 +129,10 @@ var DE = {
     "NVMe Sensor 1 temperature": "NVMe Sensor 1 Temperatur",
     // --- config: layout ---
     "Layout": "Layout",
+    "Sections (order & visibility)": "Sektionen (Reihenfolge & Sichtbarkeit)",
+    "Columns (order & visibility)": "Spalten (Reihenfolge & Sichtbarkeit)",
+    "Reorder and show/hide the battery details. The charge bar and health always stay on top.": "Akku-Details sortieren und ein-/ausblenden. Ladebalken und Health bleiben immer oben.",
+    "Details:": "Details:",
     "Reorder and show/hide the parts of the expanded view. Use ↑ ↓ to move.": "Sortiere die Bereiche der erweiterten Ansicht und blende sie ein/aus. Mit ↑ ↓ verschieben.",
     "Reset to defaults": "Auf Standard zurücksetzen",
     "System column": "System-Spalte",

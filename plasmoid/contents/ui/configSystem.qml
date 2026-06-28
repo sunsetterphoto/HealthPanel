@@ -5,13 +5,13 @@ import org.kde.kirigami as Kirigami
 import "i18n.js" as I18n
 import "layoutmeta.js" as LayoutMeta
 
-Kirigami.FormLayout {
-    id: form
+ColumnLayout {
+    id: page
 
     property string cfg_language: "system"
-    function tr(s) { return I18n.tr(I18n.resolve(form.cfg_language), s) }
+    function tr(s) { return I18n.tr(I18n.resolve(page.cfg_language), s) }
 
-    // --- layout keys (reset target; actual editing is in the Layout tab) ---
+    // --- layout keys (this tab owns the System-section order/visibility) ---
     property string cfg_systemLayout: ""
     property string cfg_systemLayoutDefault: ""
     property string cfg_batteryLayout: ""
@@ -48,86 +48,102 @@ Kirigami.FormLayout {
     property string cfg_vramStyleDefault: "bar"
 
     readonly property var graphStyles: [
-        { text: form.tr("Bar"),       value: "bar" },
-        { text: form.tr("Ring"),      value: "ring" },
-        { text: form.tr("Sparkline"), value: "sparkline" }
+        { text: page.tr("Bar"),       value: "bar" },
+        { text: page.tr("Ring"),      value: "ring" },
+        { text: page.tr("Sparkline"), value: "sparkline" }
     ]
     readonly property var netStyles: [
-        { text: form.tr("Text"),      value: "text" },
-        { text: form.tr("Sparkline"), value: "sparkline" }
+        { text: page.tr("Text"),      value: "text" },
+        { text: page.tr("Sparkline"), value: "sparkline" }
     ]
 
-    QQC2.CheckBox {
-        id: cpuLogicalCheck
-        Kirigami.FormData.label: form.tr("Shows:")
-        text: form.tr("Show logical cores (threads) instead of physical")
-    }
-    QQC2.CheckBox { id: smartCheck;       text: form.tr("SSD SMART (health / hours / TBW)") }
-    QQC2.CheckBox { id: tempsCheck;       text: form.tr("Temperatures (CPU / disk / GPU)") }
-    QQC2.CheckBox { id: powerCheck;       text: form.tr("Power draw (CPU / SoC / GPU)") }
-    QQC2.CheckBox { id: voltageCheck;     text: form.tr("GPU voltage") }
-    QQC2.CheckBox { id: diskSensor1Check; text: form.tr("NVMe Sensor 1 temperature") }
+    spacing: Kirigami.Units.smallSpacing
 
-    Item { Kirigami.FormData.isSection: true }
-
-    QQC2.ComboBox {
-        id: cpuStyleBox
-        Kirigami.FormData.label: form.tr("Style — CPU:")
-        textRole: "text"; valueRole: "value"
-        model: form.graphStyles
-        onActivated: form.cfg_cpuStyle = currentValue
-        Component.onCompleted: currentIndex = indexOfValue(form.cfg_cpuStyle)
-    }
-    QQC2.ComboBox {
-        id: gpuStyleBox
-        Kirigami.FormData.label: form.tr("Style — GPU load:")
-        textRole: "text"; valueRole: "value"
-        model: form.graphStyles
-        onActivated: form.cfg_gpuStyle = currentValue
-        Component.onCompleted: currentIndex = indexOfValue(form.cfg_gpuStyle)
-    }
-    QQC2.ComboBox {
-        id: vramStyleBox
-        Kirigami.FormData.label: form.tr("Style — VRAM:")
-        textRole: "text"; valueRole: "value"
-        model: [{ text: form.tr("Bar"), value: "bar" }, { text: form.tr("Text only"), value: "text" }]
-        onActivated: form.cfg_vramStyle = currentValue
-        Component.onCompleted: currentIndex = indexOfValue(form.cfg_vramStyle)
-    }
-    QQC2.ComboBox {
-        id: ramStyleBox
-        Kirigami.FormData.label: form.tr("Style — RAM:")
-        textRole: "text"; valueRole: "value"
-        model: form.graphStyles
-        onActivated: form.cfg_ramStyle = currentValue
-        Component.onCompleted: currentIndex = indexOfValue(form.cfg_ramStyle)
-    }
-    QQC2.ComboBox {
-        id: diskStyleBox
-        Kirigami.FormData.label: form.tr("Style — Disk:")
-        textRole: "text"; valueRole: "value"
-        model: form.graphStyles
-        onActivated: form.cfg_diskStyle = currentValue
-        Component.onCompleted: currentIndex = indexOfValue(form.cfg_diskStyle)
-    }
-    QQC2.ComboBox {
-        id: netStyleBox
-        Kirigami.FormData.label: form.tr("Style — Network:")
-        textRole: "text"; valueRole: "value"
-        model: form.netStyles
-        onActivated: form.cfg_netStyle = currentValue
-        Component.onCompleted: currentIndex = indexOfValue(form.cfg_netStyle)
+    // System-section order + visibility (drag-order with ↑↓, checkbox = show/hide)
+    LayoutGroup {
+        Layout.fillWidth: true
+        title: page.tr("Sections (order & visibility)")
+        meta: LayoutMeta.systemSections()
+        json: page.cfg_systemLayout
+        lang: I18n.resolve(page.cfg_language)
+        onChanged: page.cfg_systemLayout = newJson
     }
 
-    Item { Kirigami.FormData.isSection: true }
+    Kirigami.FormLayout {
+        Layout.fillWidth: true
 
-    QQC2.Button {
-        text: form.tr("Reset to defaults")
-        icon.name: "edit-reset"
-        onClicked: {
-            form.cfg_systemLayout  = LayoutMeta.serialize(LayoutMeta.defaultOrder(LayoutMeta.systemSections()))
-            form.cfg_batteryLayout = LayoutMeta.serialize(LayoutMeta.defaultOrder(LayoutMeta.batteryBlocks()))
-            form.cfg_columnOrder   = LayoutMeta.serialize(LayoutMeta.defaultOrder(LayoutMeta.columns()))
+        QQC2.CheckBox {
+            id: cpuLogicalCheck
+            Kirigami.FormData.label: page.tr("Details:")
+            text: page.tr("Show logical cores (threads) instead of physical")
+        }
+        QQC2.CheckBox { id: smartCheck;       text: page.tr("SSD SMART (health / hours / TBW)") }
+        QQC2.CheckBox { id: tempsCheck;       text: page.tr("Temperatures (CPU / disk / GPU)") }
+        QQC2.CheckBox { id: powerCheck;       text: page.tr("Power draw (CPU / SoC / GPU)") }
+        QQC2.CheckBox { id: voltageCheck;     text: page.tr("GPU voltage") }
+        QQC2.CheckBox { id: diskSensor1Check; text: page.tr("NVMe Sensor 1 temperature") }
+
+        Item { Kirigami.FormData.isSection: true }
+
+        QQC2.ComboBox {
+            id: cpuStyleBox
+            Kirigami.FormData.label: page.tr("Style — CPU:")
+            textRole: "text"; valueRole: "value"
+            model: page.graphStyles
+            onActivated: page.cfg_cpuStyle = currentValue
+            Component.onCompleted: currentIndex = indexOfValue(page.cfg_cpuStyle)
+        }
+        QQC2.ComboBox {
+            id: gpuStyleBox
+            Kirigami.FormData.label: page.tr("Style — GPU load:")
+            textRole: "text"; valueRole: "value"
+            model: page.graphStyles
+            onActivated: page.cfg_gpuStyle = currentValue
+            Component.onCompleted: currentIndex = indexOfValue(page.cfg_gpuStyle)
+        }
+        QQC2.ComboBox {
+            id: vramStyleBox
+            Kirigami.FormData.label: page.tr("Style — VRAM:")
+            textRole: "text"; valueRole: "value"
+            model: [{ text: page.tr("Bar"), value: "bar" }, { text: page.tr("Text only"), value: "text" }]
+            onActivated: page.cfg_vramStyle = currentValue
+            Component.onCompleted: currentIndex = indexOfValue(page.cfg_vramStyle)
+        }
+        QQC2.ComboBox {
+            id: ramStyleBox
+            Kirigami.FormData.label: page.tr("Style — RAM:")
+            textRole: "text"; valueRole: "value"
+            model: page.graphStyles
+            onActivated: page.cfg_ramStyle = currentValue
+            Component.onCompleted: currentIndex = indexOfValue(page.cfg_ramStyle)
+        }
+        QQC2.ComboBox {
+            id: diskStyleBox
+            Kirigami.FormData.label: page.tr("Style — Disk:")
+            textRole: "text"; valueRole: "value"
+            model: page.graphStyles
+            onActivated: page.cfg_diskStyle = currentValue
+            Component.onCompleted: currentIndex = indexOfValue(page.cfg_diskStyle)
+        }
+        QQC2.ComboBox {
+            id: netStyleBox
+            Kirigami.FormData.label: page.tr("Style — Network:")
+            textRole: "text"; valueRole: "value"
+            model: page.netStyles
+            onActivated: page.cfg_netStyle = currentValue
+            Component.onCompleted: currentIndex = indexOfValue(page.cfg_netStyle)
+        }
+
+        Item { Kirigami.FormData.isSection: true }
+
+        QQC2.Button {
+            text: page.tr("Reset to defaults")
+            icon.name: "edit-reset"
+            onClicked: {
+                page.cfg_systemLayout  = LayoutMeta.serialize(LayoutMeta.defaultOrder(LayoutMeta.systemSections()))
+                page.cfg_batteryLayout = LayoutMeta.serialize(LayoutMeta.defaultOrder(LayoutMeta.batteryBlocks()))
+                page.cfg_columnOrder   = LayoutMeta.serialize(LayoutMeta.defaultOrder(LayoutMeta.columns()))
+            }
         }
     }
 }
