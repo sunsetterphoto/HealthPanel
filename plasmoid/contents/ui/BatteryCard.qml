@@ -2,12 +2,14 @@
 // Defensive: only evaluates content bindings once `battery` is actually bound
 // (Plasmoid representations get instantiated with their own scope, and at
 // load time `battery` may be undefined for a tick).
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.components as PC3
 import org.kde.plasma.extras as PlasmaExtras
 import "i18n.js" as I18n
+import "layoutmeta.js" as LayoutMeta
 
 Item {
     id: card
@@ -15,15 +17,9 @@ Item {
     property string lang: "en"
     function tr(s) { return I18n.tr(card.lang, s) }
 
-    // section visibility (bound to widget config; Health header stays always on)
-    property bool showCycles: true
-    property bool showCapacity: true
-    property bool showStatus: true       // live: status line
-    property bool showPowerDraw: true    // live: power draw line
-    property bool showVoltage: true      // live: voltage line
-    property bool showSerial: true
-    property bool showChargeLimit: true
-    property bool showTime: true        // show estimated remaining time in hours
+    // layout-driven order + visibility (bound to batteryLayout config in Task 6)
+    property string layoutJson: ""
+    readonly property var _order: LayoutMeta.parseOrder(card.layoutJson, LayoutMeta.batteryBlocks())
 
     Layout.preferredWidth:  Kirigami.Units.gridUnit * 18
     Layout.preferredHeight: contentLoader.active
@@ -45,6 +41,143 @@ Item {
             : ""
     }
 
+    // ---- Block Components ----
+
+    Component {
+        id: cyclesBlock
+        GridLayout {
+            Layout.fillWidth: true
+            columns: 2
+            columnSpacing: Kirigami.Units.largeSpacing
+            rowSpacing: 2
+            PC3.Label { text: card.tr("Cycles"); opacity: 0.8 }
+            PC3.Label { text: card.battery.cycleCount; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight }
+        }
+    }
+
+    Component {
+        id: capacityBlock
+        GridLayout {
+            Layout.fillWidth: true
+            columns: 2
+            columnSpacing: Kirigami.Units.largeSpacing
+            rowSpacing: 2
+            PC3.Label { text: card.tr("Designed"); opacity: 0.8 }
+            PC3.Label { text: card.battery.fmtWh(card.battery.energyFullDesignWh); Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight }
+            PC3.Label { text: card.tr("Full (now)"); opacity: 0.8 }
+            PC3.Label { text: card.battery.fmtWh(card.battery.energyFullWh); Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight }
+            PC3.Label { text: card.tr("Remaining"); opacity: 0.8 }
+            PC3.Label {
+                text: card.battery.fmtWh(card.battery.energyNowWh) + "  (" + card.battery.capacityPct + "%)"
+                Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight
+            }
+        }
+    }
+
+    Component {
+        id: statusBlock
+        GridLayout {
+            Layout.fillWidth: true
+            columns: 2
+            columnSpacing: Kirigami.Units.largeSpacing
+            rowSpacing: 2
+            PC3.Label { text: card.tr("Status"); opacity: 0.8 }
+            PC3.Label {
+                text: card.battery.statusGlyph() + " " + (card.battery.status || "—")
+                Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight
+            }
+        }
+    }
+
+    Component {
+        id: powerBlock
+        GridLayout {
+            Layout.fillWidth: true
+            columns: 2
+            columnSpacing: Kirigami.Units.largeSpacing
+            rowSpacing: 2
+            PC3.Label { text: card.tr("Power draw"); opacity: 0.8 }
+            PC3.Label { text: card.battery.hasPowerNow ? card.battery.fmtW(card.battery.powerNowW) : "n/a"; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight }
+        }
+    }
+
+    Component {
+        id: voltageBlock
+        GridLayout {
+            Layout.fillWidth: true
+            columns: 2
+            columnSpacing: Kirigami.Units.largeSpacing
+            rowSpacing: 2
+            PC3.Label { text: card.tr("Voltage"); opacity: 0.8 }
+            PC3.Label {
+                text: card.battery.fmtV(card.battery.voltageNowV) + "  (" + card.tr("design min") + " " + card.battery.fmtV(card.battery.voltageMinDesignV) + ")"
+                Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight
+            }
+        }
+    }
+
+    Component {
+        id: timeBlock
+        GridLayout {
+            Layout.fillWidth: true
+            columns: 2
+            columnSpacing: Kirigami.Units.largeSpacing
+            rowSpacing: 2
+            visible: card.battery.hasTimeRemaining
+            PC3.Label { text: card.tr("Remaining time"); opacity: 0.8 }
+            PC3.Label {
+                text: card.battery.fmtDuration(card.battery.timeRemainingHours) + " " + (card.battery.status === "Charging" ? card.tr("to full") : card.tr("left"))
+                Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight
+            }
+        }
+    }
+
+    Component {
+        id: serialBlock
+        GridLayout {
+            Layout.fillWidth: true
+            columns: 2
+            columnSpacing: Kirigami.Units.largeSpacing
+            rowSpacing: 2
+            PC3.Label { text: card.tr("Serial"); opacity: 0.8 }
+            PC3.Label { text: card.battery.serial || "n/a"; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight }
+        }
+    }
+
+    Component {
+        id: chargeLimitBlock
+        ColumnLayout {
+            Layout.fillWidth: true
+            visible: card.battery.hasChargeThreshold
+            spacing: Kirigami.Units.smallSpacing
+            PC3.Label {
+                text: "Lenovo"
+                opacity: 0.6
+                font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+            }
+            GridLayout {
+                Layout.fillWidth: true
+                columns: 2
+                columnSpacing: Kirigami.Units.largeSpacing
+                rowSpacing: 2
+                PC3.Label { text: card.tr("Charge limit"); opacity: 0.8 }
+                PC3.Label {
+                    text: card.battery.chargeStart + "% – " + card.battery.chargeEnd + "%"
+                    Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight
+                }
+                PC3.Label { text: card.tr("Charge mode"); opacity: 0.8 }
+                PC3.Label { text: card.battery.chargeBehaviour || "auto"; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight }
+            }
+        }
+    }
+
+    // ---- id→component map (used by the Repeater in cardContent) ----
+    readonly property var _blockMap: ({
+        "cycles": cyclesBlock, "capacity": capacityBlock, "status": statusBlock,
+        "power": powerBlock, "voltage": voltageBlock, "time": timeBlock,
+        "serial": serialBlock, "chargeLimit": chargeLimitBlock
+    })
+
     // --- real content (only mounted when battery is ready+present) ---
     Loader {
         id: contentLoader
@@ -60,7 +193,7 @@ Item {
             anchors.margins: Kirigami.Units.gridUnit * 0.75
             spacing: Kirigami.Units.smallSpacing
 
-            // --- Header ---
+            // --- Header (fixed) ---
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Kirigami.Units.smallSpacing
@@ -89,7 +222,7 @@ Item {
 
             Kirigami.Separator { Layout.fillWidth: true; Layout.topMargin: Kirigami.Units.smallSpacing }
 
-            // --- Remaining charge + time (the dominant info) ---
+            // --- Remaining charge + bar (fixed) ---
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 2
@@ -98,12 +231,6 @@ Item {
                     Layout.fillWidth: true
                     PC3.Label { text: card.tr("Charge"); opacity: 0.8 }
                     Item { Layout.fillWidth: true }
-                    PC3.Label {
-                        visible: card.showTime && card.battery.hasTimeRemaining
-                        text: card.battery.fmtDuration(card.battery.timeRemainingHours) + " " + (card.battery.status === "Charging" ? card.tr("to full") : card.tr("left"))
-                        opacity: 0.7
-                        font.pixelSize: Kirigami.Theme.smallFont.pixelSize
-                    }
                     PC3.Label {
                         leftPadding: Kirigami.Units.smallSpacing
                         text: card.battery.capacityPct + "%"
@@ -129,7 +256,7 @@ Item {
 
             Kirigami.Separator { Layout.fillWidth: true; Layout.topMargin: Kirigami.Units.smallSpacing }
 
-            // --- Health ---
+            // --- Health + bar (fixed) ---
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 2
@@ -162,89 +289,16 @@ Item {
 
             Kirigami.Separator { Layout.fillWidth: true; Layout.topMargin: Kirigami.Units.smallSpacing }
 
-            // --- Capacity grid ---
-            GridLayout {
-                Layout.fillWidth: true
-                visible: card.showCycles || card.showCapacity
-                columns: 2
-                columnSpacing: Kirigami.Units.largeSpacing
-                rowSpacing: 2
-
-                PC3.Label { text: card.tr("Cycles"); opacity: 0.8; visible: card.showCycles }
-                PC3.Label { text: card.battery.cycleCount; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight; visible: card.showCycles }
-
-                PC3.Label { text: card.tr("Designed"); opacity: 0.8; visible: card.showCapacity }
-                PC3.Label { text: card.battery.fmtWh(card.battery.energyFullDesignWh); Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight; visible: card.showCapacity }
-
-                PC3.Label { text: card.tr("Full (now)"); opacity: 0.8; visible: card.showCapacity }
-                PC3.Label { text: card.battery.fmtWh(card.battery.energyFullWh); Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight; visible: card.showCapacity }
-
-                PC3.Label { text: card.tr("Remaining"); opacity: 0.8; visible: card.showCapacity }
-                PC3.Label {
-                    text: card.battery.fmtWh(card.battery.energyNowWh) + "  (" + card.battery.capacityPct + "%)"
-                    Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight; visible: card.showCapacity
+            // --- Data-driven detail blocks (order + visibility from layoutJson) ---
+            Repeater {
+                model: card._order
+                delegate: Loader {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    active: modelData.v
+                    visible: active
+                    sourceComponent: card._blockMap[modelData.id]
                 }
-            }
-
-            Kirigami.Separator {
-                Layout.fillWidth: true; Layout.topMargin: Kirigami.Units.smallSpacing
-                visible: card.showStatus || card.showPowerDraw || card.showVoltage || card.showSerial
-            }
-
-            // --- Live ---
-            GridLayout {
-                Layout.fillWidth: true
-                visible: card.showStatus || card.showPowerDraw || card.showVoltage || card.showSerial
-                columns: 2
-                columnSpacing: Kirigami.Units.largeSpacing
-                rowSpacing: 2
-
-                PC3.Label { text: card.tr("Status"); opacity: 0.8; visible: card.showStatus }
-                PC3.Label {
-                    text: card.battery.statusGlyph() + " " + (card.battery.status || "—")
-                    Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight; visible: card.showStatus
-                }
-
-                PC3.Label { text: card.tr("Power draw"); opacity: 0.8; visible: card.showPowerDraw }
-                PC3.Label { text: card.battery.hasPowerNow ? card.battery.fmtW(card.battery.powerNowW) : "n/a"; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight; visible: card.showPowerDraw }
-
-                PC3.Label { text: card.tr("Voltage"); opacity: 0.8; visible: card.showVoltage }
-                PC3.Label {
-                    text: card.battery.fmtV(card.battery.voltageNowV) + "  (" + card.tr("design min") + " " + card.battery.fmtV(card.battery.voltageMinDesignV) + ")"
-                    Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight; visible: card.showVoltage
-                }
-
-                PC3.Label { text: card.tr("Serial"); opacity: 0.8; visible: card.showSerial }
-                PC3.Label { text: card.battery.serial || "n/a"; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight; visible: card.showSerial }
-            }
-
-            // --- Lenovo ---
-            Kirigami.Separator {
-                Layout.fillWidth: true
-                Layout.topMargin: Kirigami.Units.smallSpacing
-                visible: card.battery.hasChargeThreshold && card.showChargeLimit
-            }
-            PC3.Label {
-                visible: card.battery.hasChargeThreshold && card.showChargeLimit
-                text: "Lenovo"
-                opacity: 0.6
-                font.pixelSize: Kirigami.Theme.smallFont.pixelSize
-            }
-            GridLayout {
-                visible: card.battery.hasChargeThreshold && card.showChargeLimit
-                Layout.fillWidth: true
-                columns: 2
-                columnSpacing: Kirigami.Units.largeSpacing
-                rowSpacing: 2
-
-                PC3.Label { text: card.tr("Charge limit"); opacity: 0.8 }
-                PC3.Label {
-                    text: card.battery.chargeStart + "% – " + card.battery.chargeEnd + "%"
-                    Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight
-                }
-
-                PC3.Label { text: card.tr("Charge mode"); opacity: 0.8 }
-                PC3.Label { text: card.battery.chargeBehaviour || "auto"; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight }
             }
 
             Item { Layout.fillHeight: true }
