@@ -66,6 +66,8 @@ MouseArea {
         if (type === "cpu") {
             if (key === "load") return Math.round(s.cpuPct) + "%"
             if (key === "temp") return s.hasCpuTemp ? Math.round(s.cpuTempC) + "°" : ""
+            if (key === "power")    return s.hasCpuPower ? s.fmtW(s.cpuPowerW) : ""
+            if (key === "socpower") return s.hasSocPower ? "SoC " + s.fmtW(s.socPowerW) : ""
         } else if (type === "ram") {
             if (key === "usage") return Math.round(s.ramPct) + "%"
             if (key === "used")  return s.fmtGB(s.ramUsedGB)
@@ -73,11 +75,24 @@ MouseArea {
         } else if (type === "disk") {
             if (key === "usage") return Math.round(s.diskPct) + "%"
             if (key === "temp")  return s.hasDiskTemp ? Math.round(s.diskTempC) + "°" : ""
+            if (key === "tempSensor1") return s.hasDiskTempSensor1 ? "S1 " + Math.round(s.diskTempSensor1C) + "°" : ""
             if (key === "read")  return "↓" + s.fmtRate(s.diskReadMBps)
             if (key === "write") return "↑" + s.fmtRate(s.diskWriteMBps)
         } else if (type === "net") {
             if (key === "down") return "↓" + s.fmtRate(s.netDownMBps)
             if (key === "up")   return "↑" + s.fmtRate(s.netUpMBps)
+        } else if (type === "gpu") {
+            if (key === "load")    return s.hasGpu ? Math.round(s.gpuBusy) + "%" : ""
+            if (key === "temp")    return s.hasGpuTemp ? Math.round(s.gpuTempC) + "°" : ""
+            if (key === "power")   return s.hasGpuPower ? s.fmtW(s.gpuPowerW) : ""
+            if (key === "vram")    return s.hasGpu ? Math.round(s.vramPct) + "%" : ""
+            if (key === "voltage") return s.hasGpuVoltage ? s.fmtVolt(s.gpuVoltageV) : ""
+        } else if (type === "fan") {
+            if (key === "max")  return s.hasFan ? s.fmtRpm(s.fanMaxRpm) : ""
+            if (key === "fan1") return (s.fanRpms.length > 0) ? s.fmtRpm(s.fanRpms[0]) : ""
+            if (key === "fan2") return (s.fanRpms.length > 1) ? s.fmtRpm(s.fanRpms[1]) : ""
+            if (key === "fan3") return (s.fanRpms.length > 2) ? s.fmtRpm(s.fanRpms[2]) : ""
+            if (key === "fan4") return (s.fanRpms.length > 3) ? s.fmtRpm(s.fanRpms[3]) : ""
         }
         return ""
     }

@@ -12,7 +12,23 @@ function types() {
         ] },
         { type: "cpu", label: "CPU", icon: "cpu", texts: [
             { k: "load", l: "Load %" },
-            { k: "temp", l: "Temperature" }
+            { k: "temp", l: "Temperature" },
+            { k: "power",    l: "CPU power (W)" },
+            { k: "socpower", l: "SoC power (W)" }
+        ] },
+        { type: "gpu", label: "GPU", icon: "video-card", texts: [
+            { k: "load",    l: "Load %" },
+            { k: "temp",    l: "Temperature" },
+            { k: "power",   l: "GPU power (W)" },
+            { k: "vram",    l: "VRAM %" },
+            { k: "voltage", l: "GPU voltage (V)" }
+        ] },
+        { type: "fan", label: "Fan", icon: "sensors", texts: [
+            { k: "max",  l: "Speed (rpm)" },
+            { k: "fan1", l: "Fan 1" },
+            { k: "fan2", l: "Fan 2" },
+            { k: "fan3", l: "Fan 3" },
+            { k: "fan4", l: "Fan 4" }
         ] },
         { type: "ram", label: "RAM", icon: "memory", texts: [
             { k: "usage", l: "Usage %" },
@@ -22,6 +38,7 @@ function types() {
         { type: "disk", label: "Disk", icon: "drive-harddisk", texts: [
             { k: "usage", l: "Usage %" },
             { k: "temp",  l: "Temperature" },
+            { k: "tempSensor1", l: "NVMe Sensor 1" },
             { k: "read",  l: "Read" },
             { k: "write", l: "Write" }
         ] },
