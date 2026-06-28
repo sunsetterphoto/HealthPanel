@@ -133,6 +133,7 @@ var DE = {
     "Battery column": "Akku-Spalte",
     "Columns": "Spalten",
     "Remaining time": "Restzeit",
+    "Capacity": "Kapazität",
     "Controls column": "Steuer-Spalte",
     // --- config category names ---
     "Pinned — stays open": "Angeheftet — bleibt offen",
