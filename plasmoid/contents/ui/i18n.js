@@ -95,6 +95,7 @@ var DE = {
     // --- config: panel ---
     "Panel icons": "Panel-Icons",
     "Choose which icons appear in the panel / compact view and which values are shown as text. Reorder with ↑ ↓.": "Lege fest, welche Icons in der Leiste / Kompaktansicht erscheinen und welche Werte als Text daneben stehen. Reihenfolge per ↑ ↓.",
+    "Text only (no icons), separated by a divider": "Nur Text (keine Icons), durch Trennstrich getrennt",
     "Icon:": "Icon:",
     "Text beside it:": "Text daneben:",
     "Add icon": "Icon hinzufügen",

@@ -11,6 +11,8 @@ ColumnLayout {
     property string cfg_panelLayout: '[{"type":"battery","texts":["charge"]}]'
     property string cfg_panelLayoutDefault: '[{"type":"battery","texts":["charge"]}]'
     property string cfg_language: "system"
+    property alias cfg_panelTextOnly: textOnlyCheck.checked
+    property bool  cfg_panelTextOnlyDefault: false
     function tr(s) { return I18n.tr(I18n.resolve(page.cfg_language), s) }
 
     // working copy of the icon list; commit() writes it back to the config string
@@ -34,6 +36,12 @@ ColumnLayout {
         wrapMode: Text.WordWrap
         opacity: 0.7
         text: page.tr("Choose which icons appear in the panel / compact view and which values are shown as text. Reorder with ↑ ↓.")
+    }
+
+    QQC2.CheckBox {
+        id: textOnlyCheck
+        text: page.tr("Text only (no icons), separated by a divider")
+        Layout.topMargin: Kirigami.Units.smallSpacing
     }
 
     Repeater {

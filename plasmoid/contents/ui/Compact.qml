@@ -23,6 +23,8 @@ MouseArea {
         && compact.system.hasPowerProfile === true
     readonly property bool _vertical: Plasmoid.formFactor === PlasmaCore.Types.Vertical
     readonly property var _layout: PanelMeta.parseLayout(Plasmoid.configuration.panelLayout)
+    // text-only mode: hide icons, separate the values with a thin divider instead
+    readonly property bool _textOnly: Plasmoid.configuration.panelTextOnly === true
 
     implicitWidth: row.implicitWidth + Kirigami.Units.smallSpacing * 2
     implicitHeight: Math.max(row.implicitHeight, Kirigami.Units.iconSizes.small)
@@ -116,16 +118,31 @@ MouseArea {
         Repeater {
             model: compact._layout
             delegate: RowLayout {
+                id: itemRow
                 required property var modelData
+                required property int index
+                readonly property string _txt: compact.textFor(modelData)
                 spacing: Kirigami.Units.smallSpacing
+                // divider between values in text-only mode (vertical on a horizontal
+                // panel, horizontal on a vertical panel); never before the first value
+                Rectangle {
+                    visible: compact._textOnly && itemRow.index > 0 && itemRow._txt.length > 0
+                    color: Kirigami.Theme.textColor
+                    opacity: 0.3
+                    Layout.alignment: Qt.AlignCenter
+                    Layout.rightMargin: Kirigami.Units.smallSpacing
+                    Layout.preferredWidth:  compact._vertical ? Kirigami.Units.iconSizes.small : 1
+                    Layout.preferredHeight: compact._vertical ? 1 : Kirigami.Units.iconSizes.small
+                }
                 Kirigami.Icon {
+                    visible: !compact._textOnly
                     source: compact.iconFor(modelData.type)
                     Layout.alignment: Qt.AlignCenter
                     implicitWidth:  Kirigami.Units.iconSizes.small
                     implicitHeight: Kirigami.Units.iconSizes.small
                 }
                 PC3.Label {
-                    text: compact.textFor(modelData)
+                    text: itemRow._txt
                     visible: text.length > 0
                     font.pixelSize: Kirigami.Theme.defaultFont.pixelSize
                     Layout.alignment: Qt.AlignCenter
