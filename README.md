@@ -29,6 +29,28 @@ Each section can be hidden; each metric has a selectable display style
 - **Network** — down/up throughput (text or sparkline)
 - **SSD SMART** — health, power-on hours, terabytes written (NVMe and SATA)
 
+### CPU / SoC / GPU power, fans, sensors
+
+HealthPanel auto-detects and labels power draw by its true source:
+
+- **SoC** — whole-chip package power on an APU (AMD `amdgpu` PPT). Always shown when present, even at full charge.
+- **GPU** — power of a *discrete* graphics card (when present).
+- **CPU** — true CPU package power from RAPL. **Opt-in**, because the kernel
+  restricts RAPL energy counters to root by default (a power side-channel
+  mitigation). Enable it explicitly:
+
+  ```sh
+  ./install.sh --enable-cpu-power
+  ```
+
+  This installs a udev rule making `intel-rapl:*/energy_uj` world-readable.
+  It slightly weakens the PLATYPUS mitigation — enable only on trusted
+  machines. Remove it with `./uninstall.sh`.
+
+Fan speed, GPU voltage, and the extra NVMe "Sensor 1" temperature are read
+without any extra privileges. Any value your hardware doesn't expose is hidden
+automatically.
+
 ### Battery column — detailed health
 
 Sections individually toggleable:

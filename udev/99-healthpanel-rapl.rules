@@ -1,0 +1,6 @@
+# HealthPanel: make Intel/AMD RAPL energy counters world-readable so the
+# unprivileged widget can compute CPU package power. Opt-in — installed only
+# when you run `install.sh --enable-cpu-power`. Removes a minor local
+# power side-channel mitigation (PLATYPUS); enable only on trusted machines.
+SUBSYSTEM=="powercap", KERNEL=="intel-rapl:*", ACTION=="add", RUN+="/bin/chmod 0444 /sys/%p/energy_uj"
+ACTION=="add", SUBSYSTEM=="powercap", KERNEL=="intel-rapl:*", TEST=="energy_uj", MODE="0444"

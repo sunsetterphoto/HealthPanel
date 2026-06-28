@@ -41,6 +41,13 @@ sudo rm -fv /etc/systemd/system/healthpanel-smart.service \
 sudo systemctl daemon-reload || true
 sudo rm -rf /var/lib/healthpanel
 
+# --- optional RAPL udev rule (if it was enabled) ---
+if [[ -e /etc/udev/rules.d/99-healthpanel-rapl.rules ]]; then
+    echo "Removing RAPL udev rule ..."
+    sudo rm -fv /etc/udev/rules.d/99-healthpanel-rapl.rules
+    sudo udevadm control --reload || true
+fi
+
 echo
 echo "Done. HealthPanel entfernt."
 echo "  Akku-History bleibt unter ~/.local/state/healthpanel/ (manuell löschen falls gewünscht)."

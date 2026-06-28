@@ -7,6 +7,9 @@
 # `sudo` itself only where it needs root.
 set -euo pipefail
 
+ENABLE_CPU_POWER=0
+for a in "$@"; do [[ "$a" == "--enable-cpu-power" ]] && ENABLE_CPU_POWER=1; done
+
 if [ "${EUID:-$(id -u)}" -eq 0 ]; then
     echo "Bitte OHNE sudo ausführen: ./install.sh" >&2
     echo "Die User-Teile gehören in dein Home; der SMART-Block ruft sudo selbst auf." >&2
@@ -86,3 +89,18 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now healthpanel-smart.timer
 sudo /usr/local/bin/healthpanel-smart || true   # initial fill
 echo "  SMART-Cache: /var/lib/healthpanel/smart.json"
+
+# ---- optional: RAPL CPU-power exposure (opt-in, needs root) ----
+if [[ "$ENABLE_CPU_POWER" -eq 1 ]]; then
+    echo "Aktiviere CPU-Power (RAPL) — installiere udev-Regel (sudo erforderlich)…"
+    sudo install -m 644 "$PROJECT_DIR/udev/99-healthpanel-rapl.rules" \
+        /etc/udev/rules.d/99-healthpanel-rapl.rules
+    command -v restorecon >/dev/null 2>&1 && sudo restorecon -F /etc/udev/rules.d/99-healthpanel-rapl.rules || true
+    sudo udevadm control --reload
+    sudo udevadm trigger --subsystem-match=powercap --action=add
+    # apply immediately to already-present domains (no reboot needed)
+    sudo chmod 0444 /sys/class/powercap/intel-rapl:*/energy_uj 2>/dev/null || true
+    echo "  CPU-Power aktiv. Rückgängig: ./uninstall.sh oder Regel in /etc/udev/rules.d entfernen."
+else
+    echo "CPU-Power (RAPL) NICHT aktiviert. Optional einschalten mit: ./install.sh --enable-cpu-power"
+fi
