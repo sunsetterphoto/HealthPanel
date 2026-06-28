@@ -81,6 +81,64 @@ gpu_temp() {
     done
 }
 
+# RAPL package power in W (two samples $SAMPLE apart), or empty if unreadable.
+rapl_power() {
+    local f=/sys/class/powercap/intel-rapl:0/energy_uj
+    [[ -r "$f" ]] || return 0
+    local e1 e2 mx
+    e1=$(cat "$f" 2>/dev/null) || return 0
+    sleep "$SAMPLE"
+    e2=$(cat "$f" 2>/dev/null) || return 0
+    mx=$(cat /sys/class/powercap/intel-rapl:0/max_energy_range_uj 2>/dev/null)
+    awk -v a="$e1" -v b="$e2" -v m="${mx:-0}" -v dt="$SAMPLE" 'BEGIN{
+        de=b-a; if(de<0){ if(m>0) de+=m; else { exit } }
+        printf "%.1f", (de/dt)/1e6 }'
+}
+
+# amdgpu PPT (whole-package on an APU) in W, classified by boot_vga + battery.
+# Echoes "soc <W>" or "gpu <W>" lines.
+chip_power() {
+    local hb=0 b
+    for b in /sys/class/power_supply/*; do
+        [[ "$(cat "$b/type" 2>/dev/null)" == Battery ]] && hb=1 && break
+    done
+    local c hw drv bv ppt
+    for c in /sys/class/drm/card[0-9]*/device; do
+        [[ -d "$c/hwmon" ]] || continue
+        for hw in "$c"/hwmon/hwmon*; do
+            [[ -e "$hw/power1_input" ]] || continue
+            drv=$(basename "$(readlink -f "$c/driver" 2>/dev/null)" 2>/dev/null)
+            bv=$(cat "$c/boot_vga" 2>/dev/null || echo 0)
+            ppt=$(cat "$hw/power1_input" 2>/dev/null || echo 0)
+            [[ "$ppt" -gt 0 ]] || continue
+            local w; w=$(awk -v x="$ppt" 'BEGIN{printf "%.1f", x/1e6}')
+            if [[ "$drv" != nvidia && "$bv" == 1 && "$hb" == 1 ]]; then
+                echo "soc $w"
+            else
+                echo "gpu $w"
+            fi
+        done
+    done
+}
+
+# Fan speeds: the chip reporting the most fans wins (avoids double counting).
+fan_speeds() {
+    local h n best="" bestn=0 cur
+    for h in /sys/class/hwmon/hwmon*; do
+        n=$(cat "$h/name" 2>/dev/null) || continue
+        cur=""
+        local f
+        for f in "$h"/fan[0-9]*_input; do
+            [[ -e "$f" ]] || continue
+            local v; v=$(cat "$f" 2>/dev/null); [[ -n "$v" ]] || continue
+            cur+="$v "
+        done
+        local cnt; cnt=$(echo $cur | wc -w)
+        if [[ "$cnt" -gt "$bestn" ]]; then bestn=$cnt; best="$cur"; fi
+    done
+    echo "$best"
+}
+
 # ---------- system gathering ----------
 # CPU busy% from two /proc/stat snapshots, $SAMPLE apart
 cpu_busy() {
@@ -134,6 +192,14 @@ gather_system() {
     done
     GPU_TEMP=$(gpu_temp)
     GPU_NAME=$(lspci 2>/dev/null | grep -iE 'vga|3d controller' | head -1 | sed 's/.*: //; s/ (rev.*//')
+
+    CPU_POWER=$(rapl_power)
+    SOC_POWER=""; GPU_POWER=""
+    while read -r kind w; do
+        [[ "$kind" == soc ]] && SOC_POWER="$w"
+        [[ "$kind" == gpu ]] && GPU_POWER="$w"
+    done < <(chip_power)
+    FANS=$(fan_speeds)
 }
 
 render_system() {
@@ -148,6 +214,8 @@ render_system() {
     kv "Cores / Threads" "${CPU_CORES:-?} phys · ${CPU_THREADS:-?} logical"
     [[ -n "$CPU_MHZ" ]]  && kv "Frequency" "$(awk -v m="$CPU_MHZ" 'BEGIN{printf "%.2f GHz", m/1000}')"
     [[ -n "$CPU_TEMP" ]] && kv "Temperature" "${CPU_TEMP}°C"
+    [[ -n "$CPU_POWER" ]] && kv "CPU power" "${CPU_POWER} W"
+    [[ -n "$SOC_POWER" ]] && kv "SoC power" "${SOC_POWER} W"
     # RAM
     local used=$((${MEM_TOTAL:-0}-${MEM_AVAIL:-0})) rp
     rp=$(percent_of "$used" "${MEM_TOTAL:-0}")
@@ -186,6 +254,12 @@ render_system() {
                 "$(awk -v u="$VRAM_USED" -v d="$gb" 'BEGIN{printf "%.1f", u/d}')" \
                 "$(awk -v t="$VRAM_TOTAL" -v d="$gb" 'BEGIN{printf "%.1f", t/d}')"
         fi
+    fi
+    [[ -n "$GPU_POWER" ]] && kv "GPU power" "${GPU_POWER} W"
+    if [[ -n "${FANS// /}" ]]; then
+        local fan_fmt=""
+        for r in $FANS; do fan_fmt+="${r} rpm  "; done
+        kv "Fans" "${fan_fmt% }"
     fi
     # Network
     kv "Network" "$(awk -v r="${NET_RX:-0}" -v t="${NET_TX:-0}" -v d="$gb" \
