@@ -250,9 +250,32 @@ function parseRaplPower(rapl1, rapl2, raplMax, dtSec) {
     return (de / dtSec) / 1e6;   // µJ -> W
 }
 
+function parsePowerSection(text) {
+    var hasBattery = false, cards = [];
+    (text || "").split("\n").forEach(function (line) {
+        var hb = line.match(/^HASBATTERY=(\d)/);
+        if (hb) { hasBattery = hb[1] === "1"; return; }
+        var m = line.match(/^CARD=(\S+)\s+BOOTVGA=(\d)\s+DRIVER=(\S+)\s+PPT=(\d+)/);
+        if (m) cards.push({ card: m[1], bootVga: m[2] === "1", driver: m[3], pptUW: parseInt(m[4], 10) });
+    });
+    return { hasBattery: hasBattery, cards: cards };
+}
+
+function classifyGpuPower(ps) {
+    var socW = null, gpuW = null;
+    (ps.cards || []).forEach(function (c) {
+        if (!(c.pptUW > 0)) return;                       // skip cards that report no power
+        var w = c.pptUW / 1e6;
+        var integrated = (c.driver !== "nvidia") && c.bootVga && ps.hasBattery;
+        if (integrated) { if (socW === null) socW = w; }
+        else { if (gpuW === null) gpuW = w; }
+    });
+    return { socW: socW, gpuW: gpuW };
+}
+
 // ---- UMD export (Node only; ignored by QML) ----
 if (typeof module !== "undefined" && module.exports) {
     module.exports = { parseMeminfo, memStats, parseCpuStat, cpuPct, parseCoreIds,
         physicalCoreLoads, parseNetDev, rateMBps, sectorsRateMBps, parseDiskstats,
-        deviceBase, parseDfLine, parseProfile, parseTemps, parseSmart, parseGpu, parseRaplPower, parseProbe };
+        deviceBase, parseDfLine, parseProfile, parseTemps, parseSmart, parseGpu, parseRaplPower, parsePowerSection, classifyGpuPower, parseProbe };
 }

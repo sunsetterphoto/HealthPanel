@@ -220,3 +220,33 @@ test('parseRaplPower returns null when energy is unreadable or dt<=0', () => {
   assert.equal(S.parseRaplPower('1000000', '7000000', '100', 0), null);
   assert.equal(S.parseRaplPower('x', 'y', '100', 0.5), null);
 });
+
+const POWER_APU = 'HASBATTERY=1\nCARD=0 BOOTVGA=1 DRIVER=amdgpu PPT=19067000';
+const POWER_DGPU = 'HASBATTERY=0\nCARD=0 BOOTVGA=1 DRIVER=i915 PPT=0\nCARD=1 BOOTVGA=0 DRIVER=nvidia PPT=35000000';
+
+test('parsePowerSection reads battery flag and card lines', () => {
+  const ps = S.parsePowerSection(POWER_APU);
+  assert.equal(ps.hasBattery, true);
+  assert.equal(ps.cards.length, 1);
+  assert.equal(ps.cards[0].driver, 'amdgpu');
+  assert.equal(ps.cards[0].bootVga, true);
+  assert.equal(ps.cards[0].pptUW, 19067000);
+});
+
+test('classifyGpuPower: integrated amdgpu on a laptop -> SoC, no GPU', () => {
+  const c = S.classifyGpuPower(S.parsePowerSection(POWER_APU));
+  assert.ok(Math.abs(c.socW - 19.067) < 1e-6);
+  assert.equal(c.gpuW, null);
+});
+
+test('classifyGpuPower: discrete nvidia -> GPU, no SoC', () => {
+  const c = S.classifyGpuPower(S.parsePowerSection(POWER_DGPU));
+  assert.equal(c.socW, null);
+  assert.ok(Math.abs(c.gpuW - 35) < 1e-6);
+});
+
+test('classifyGpuPower: empty section -> both null', () => {
+  const c = S.classifyGpuPower(S.parsePowerSection(''));
+  assert.equal(c.socW, null);
+  assert.equal(c.gpuW, null);
+});
