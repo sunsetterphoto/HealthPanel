@@ -465,6 +465,15 @@ ColumnLayout {
         "ram": ramSection, "disk": diskSection, "fans": fansSection, "net": netSection
     })
 
+    // sections whose existence depends on a hardware source; others are always present
+    function _hwPresent(id) {
+        if (!col._ok) return false
+        if (id === "gpu") return col.system.hasGpu
+        if (id === "fans") return col.system.hasFan
+        if (id === "powerMode") return col.system.hasPowerProfile
+        return true
+    }
+
     Repeater {
         model: col._order
         delegate: ColumnLayout {
@@ -473,10 +482,10 @@ ColumnLayout {
             required property int index
             Layout.fillWidth: true
             spacing: Kirigami.Units.smallSpacing
-            // section is visible only when its v flag is on and (for gpu/fans) the
-            // hardware source exists — those inner has* checks already live inside
-            // each component, so an empty section simply renders nothing.
-            visible: secWrap.modelData.v
+            // section is visible only when its v flag is on AND its hardware source
+            // exists — hiding the whole wrapper (divider + loader) avoids a stray
+            // SectionRule when a section is enabled but its hardware is absent.
+            visible: secWrap.modelData.v && col._hwPresent(secWrap.modelData.id)
             SectionRule { visible: secWrap.index > 0 }
             Loader { Layout.fillWidth: true; sourceComponent: col._sectionMap[secWrap.modelData.id] }
         }
