@@ -75,6 +75,10 @@ Item {
             showSmart:     Plasmoid.configuration.showSmart
             showTemps:     Plasmoid.configuration.showTemps
             showGpu:       Plasmoid.configuration.showGpu
+            showPower:       Plasmoid.configuration.showPower
+            showFans:        Plasmoid.configuration.showFans
+            showVoltage:     Plasmoid.configuration.showVoltage
+            showDiskSensor1: Plasmoid.configuration.showDiskSensor1
             cpuCoresLogical: Plasmoid.configuration.cpuCoresLogical
             cpuStyle:      Plasmoid.configuration.cpuStyle
             gpuStyle:      Plasmoid.configuration.gpuStyle
@@ -102,7 +106,9 @@ Item {
             battery: view.battery
             showCycles:      Plasmoid.configuration.showBatCycles
             showCapacity:    Plasmoid.configuration.showBatCapacity
-            showLive:        Plasmoid.configuration.showBatLive
+            showStatus:      Plasmoid.configuration.showBatStatus
+            showPowerDraw:   Plasmoid.configuration.showBatPower
+            showVoltage:     Plasmoid.configuration.showBatVoltage
             showSerial:      Plasmoid.configuration.showBatSerial
             showChargeLimit: Plasmoid.configuration.showBatChargeLimit
             showTime:        Plasmoid.configuration.showBatTime

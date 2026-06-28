@@ -18,7 +18,9 @@ Item {
     // section visibility (bound to widget config; Health header stays always on)
     property bool showCycles: true
     property bool showCapacity: true
-    property bool showLive: true
+    property bool showStatus: true       // live: status line
+    property bool showPowerDraw: true    // live: power draw line
+    property bool showVoltage: true      // live: voltage line
     property bool showSerial: true
     property bool showChargeLimit: true
     property bool showTime: true        // show estimated remaining time in hours
@@ -186,30 +188,30 @@ Item {
 
             Kirigami.Separator {
                 Layout.fillWidth: true; Layout.topMargin: Kirigami.Units.smallSpacing
-                visible: card.showLive || card.showSerial
+                visible: card.showStatus || card.showPowerDraw || card.showVoltage || card.showSerial
             }
 
             // --- Live ---
             GridLayout {
                 Layout.fillWidth: true
-                visible: card.showLive || card.showSerial
+                visible: card.showStatus || card.showPowerDraw || card.showVoltage || card.showSerial
                 columns: 2
                 columnSpacing: Kirigami.Units.largeSpacing
                 rowSpacing: 2
 
-                PC3.Label { text: card.tr("Status"); opacity: 0.8; visible: card.showLive }
+                PC3.Label { text: card.tr("Status"); opacity: 0.8; visible: card.showStatus }
                 PC3.Label {
                     text: card.battery.statusGlyph() + " " + (card.battery.status || "—")
-                    Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight; visible: card.showLive
+                    Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight; visible: card.showStatus
                 }
 
-                PC3.Label { text: card.tr("Power draw"); opacity: 0.8; visible: card.showLive }
-                PC3.Label { text: card.battery.hasPowerNow ? card.battery.fmtW(card.battery.powerNowW) : "n/a"; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight; visible: card.showLive }
+                PC3.Label { text: card.tr("Power draw"); opacity: 0.8; visible: card.showPowerDraw }
+                PC3.Label { text: card.battery.hasPowerNow ? card.battery.fmtW(card.battery.powerNowW) : "n/a"; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight; visible: card.showPowerDraw }
 
-                PC3.Label { text: card.tr("Voltage"); opacity: 0.8; visible: card.showLive }
+                PC3.Label { text: card.tr("Voltage"); opacity: 0.8; visible: card.showVoltage }
                 PC3.Label {
                     text: card.battery.fmtV(card.battery.voltageNowV) + "  (" + card.tr("design min") + " " + card.battery.fmtV(card.battery.voltageMinDesignV) + ")"
-                    Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight; visible: card.showLive
+                    Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight; visible: card.showVoltage
                 }
 
                 PC3.Label { text: card.tr("Serial"); opacity: 0.8; visible: card.showSerial }

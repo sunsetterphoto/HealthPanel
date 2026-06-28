@@ -41,6 +41,19 @@
     <entry name="showGpu" type="Bool">
       <default>true</default>
     </entry>
+    <!-- New sensor rows (auto-hidden when the hardware lacks the source) -->
+    <entry name="showPower" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="showFans" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="showVoltage" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="showDiskSensor1" type="Bool">
+      <default>true</default>
+    </entry>
     <!-- CPU core bars: false = physical cores, true = logical cores (threads) -->
     <entry name="cpuCoresLogical" type="Bool">
       <default>false</default>
@@ -79,7 +92,14 @@
     <entry name="showBatCapacity" type="Bool">
       <default>true</default>
     </entry>
-    <entry name="showBatLive" type="Bool">
+    <!-- Live values, individually toggleable (formerly one "showBatLive") -->
+    <entry name="showBatStatus" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="showBatPower" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="showBatVoltage" type="Bool">
       <default>true</default>
     </entry>
     <entry name="showBatSerial" type="Bool">

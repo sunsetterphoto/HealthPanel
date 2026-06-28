@@ -26,6 +26,10 @@ ColumnLayout {
     property bool showTemps: true
     property bool cpuCoresLogical: false   // false = physical cores, true = threads
     property bool showGpu: true
+    property bool showPower: true          // CPU/SoC/GPU power-draw rows
+    property bool showFans: true           // fan-speed section
+    property bool showVoltage: true        // GPU voltage row
+    property bool showDiskSensor1: true    // NVMe "Sensor 1" temperature
     property string gpuStyle: "sparkline"  // bar | ring | sparkline (GPU load)
     property string vramStyle: "bar"       // bar | text (VRAM usage)
 
@@ -206,7 +210,7 @@ ColumnLayout {
         Spark { visible: col.cpuStyle === "sparkline"; points: col._ok ? col.system.cpuHist : []; maxValue: 100; fill: "#3daee9" }
         RowLayout {
             Layout.fillWidth: true
-            visible: col._ok && (col.system.hasCpuPower || col.system.hasSocPower)
+            visible: col._ok && col.showPower && (col.system.hasCpuPower || col.system.hasSocPower)
             MLabel { text: col.tr("Power draw") }
             Item { Layout.fillWidth: true }
             PC3.Label {
@@ -268,17 +272,21 @@ ColumnLayout {
         Bar { visible: col.vramStyle === "bar"; fraction: col._ok ? col.system.vramPct / 100 : 0; fill: "#d35400" }
         RowLayout {
             Layout.fillWidth: true
-            visible: col._ok && (col.system.hasGpuPower || col.system.hasGpuVoltage)
+            visible: col._ok && col.showPower && col.system.hasGpuPower
             MLabel { text: col.tr("Power draw") }
             Item { Layout.fillWidth: true }
             PC3.Label {
-                text: {
-                    if (!col._ok) return ""
-                    var parts = []
-                    if (col.system.hasGpuPower) parts.push(col.system.fmtW(col.system.gpuPowerW))
-                    if (col.system.hasGpuVoltage) parts.push(col.system.fmtVolt(col.system.gpuVoltageV))
-                    return parts.join("   ")
-                }
+                text: col._ok ? col.system.fmtW(col.system.gpuPowerW) : ""
+                opacity: 0.7; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+            }
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            visible: col._ok && col.showVoltage && col.system.hasGpuVoltage
+            MLabel { text: col.tr("Voltage") }
+            Item { Layout.fillWidth: true }
+            PC3.Label {
+                text: col._ok ? col.system.fmtVolt(col.system.gpuVoltageV) : ""
                 opacity: 0.7; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
             }
         }
@@ -344,7 +352,7 @@ ColumnLayout {
                 opacity: 0.5; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
             }
             PC3.Label {
-                visible: col._ok && col.showTemps && col.system.hasDiskTempSensor1
+                visible: col._ok && col.showDiskSensor1 && col.system.hasDiskTempSensor1
                 text: col._ok ? "S1 " + col.system.fmtTemp(col.system.diskTempSensor1C) : ""
                 opacity: 0.5; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
             }
@@ -385,10 +393,10 @@ ColumnLayout {
     }
 
     // ---- Fans ----
-    SectionRule { visible: col._ok && col.system.hasFan && (col._pm || col.showCpu || col.showRam || col.showDisk) }
+    SectionRule { visible: col._ok && col.showFans && col.system.hasFan && (col._pm || col.showCpu || col.showRam || col.showDisk) }
     RowLayout {
         Layout.fillWidth: true
-        visible: col._ok && col.system.hasFan
+        visible: col._ok && col.showFans && col.system.hasFan
         MLabel { text: col.tr("Fans") }
         Item { Layout.fillWidth: true }
         PC3.Label {

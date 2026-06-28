@@ -31,6 +31,14 @@ Kirigami.FormLayout {
     property bool  cfg_showSmartDefault: true
     property alias cfg_showTemps: tempsCheck.checked
     property bool  cfg_showTempsDefault: true
+    property alias cfg_showPower: powerCheck.checked
+    property bool  cfg_showPowerDefault: true
+    property alias cfg_showFans: fansCheck.checked
+    property bool  cfg_showFansDefault: true
+    property alias cfg_showVoltage: voltageCheck.checked
+    property bool  cfg_showVoltageDefault: true
+    property alias cfg_showDiskSensor1: diskSensor1Check.checked
+    property bool  cfg_showDiskSensor1Default: true
 
     // --- per-metric styles (plain props; combos set them via onActivated) ---
     property string cfg_cpuStyle: "sparkline"
@@ -80,6 +88,10 @@ Kirigami.FormLayout {
     QQC2.CheckBox { id: netCheck;   text: form.tr("Network"); enabled: systemColCheck.checked }
     QQC2.CheckBox { id: smartCheck; text: form.tr("SSD SMART (health / hours / TBW)"); enabled: systemColCheck.checked }
     QQC2.CheckBox { id: tempsCheck; text: form.tr("Temperatures (CPU / disk / GPU)"); enabled: systemColCheck.checked }
+    QQC2.CheckBox { id: powerCheck;       text: form.tr("Power draw (CPU / SoC / GPU)"); enabled: systemColCheck.checked }
+    QQC2.CheckBox { id: fansCheck;        text: form.tr("Fans"); enabled: systemColCheck.checked }
+    QQC2.CheckBox { id: voltageCheck;     text: form.tr("GPU voltage"); enabled: systemColCheck.checked }
+    QQC2.CheckBox { id: diskSensor1Check; text: form.tr("NVMe Sensor 1 temperature"); enabled: systemColCheck.checked }
 
     Item { Kirigami.FormData.isSection: true }
 

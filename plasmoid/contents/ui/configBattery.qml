@@ -16,8 +16,12 @@ Kirigami.FormLayout {
     property bool  cfg_showBatCyclesDefault: true
     property alias cfg_showBatCapacity: batCapacityCheck.checked
     property bool  cfg_showBatCapacityDefault: true
-    property alias cfg_showBatLive: batLiveCheck.checked
-    property bool  cfg_showBatLiveDefault: true
+    property alias cfg_showBatStatus: batStatusCheck.checked
+    property bool  cfg_showBatStatusDefault: true
+    property alias cfg_showBatPower: batPowerCheck.checked
+    property bool  cfg_showBatPowerDefault: true
+    property alias cfg_showBatVoltage: batVoltageCheck.checked
+    property bool  cfg_showBatVoltageDefault: true
     property alias cfg_showBatSerial: batSerialCheck.checked
     property bool  cfg_showBatSerialDefault: false
     property alias cfg_showBatTime: batTimeCheck.checked
@@ -37,7 +41,9 @@ Kirigami.FormLayout {
         enabled: batteryColCheck.checked
     }
     QQC2.CheckBox { id: batCapacityCheck; text: form.tr("Capacity (designed / full / remaining)"); enabled: batteryColCheck.checked }
-    QQC2.CheckBox { id: batLiveCheck;     text: form.tr("Live values (status / power / voltage)"); enabled: batteryColCheck.checked }
+    QQC2.CheckBox { id: batStatusCheck;   text: form.tr("Status"); enabled: batteryColCheck.checked }
+    QQC2.CheckBox { id: batPowerCheck;    text: form.tr("Power draw"); enabled: batteryColCheck.checked }
+    QQC2.CheckBox { id: batVoltageCheck;  text: form.tr("Voltage"); enabled: batteryColCheck.checked }
     QQC2.CheckBox { id: batTimeCheck;     text: form.tr("Estimated remaining time (hours)"); enabled: batteryColCheck.checked }
     QQC2.CheckBox { id: batSerialCheck;   text: form.tr("Serial number"); enabled: batteryColCheck.checked }
     QQC2.CheckBox { id: batChargeCheck;   text: form.tr("Vendor charge thresholds"); enabled: batteryColCheck.checked }

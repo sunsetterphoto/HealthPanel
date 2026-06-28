@@ -83,7 +83,6 @@ var DE = {
     // --- config: battery ---
     "Battery cycles": "Ladezyklen",
     "Capacity (designed / full / remaining)": "Kapazität (Auslegung / Voll / Verbleibend)",
-    "Live values (status / power / voltage)": "Live-Werte (Status / Leistung / Spannung)",
     "Serial number": "Seriennummer",
     "Estimated remaining time (hours)": "Geschätzte Restlaufzeit (Stunden)",
     "Vendor charge thresholds": "Hersteller-Ladeschwellen",
@@ -123,6 +122,9 @@ var DE = {
     "Fan 3": "Lüfter 3",
     "Fan 4": "Lüfter 4",
     "NVMe Sensor 1": "NVMe Sensor 1",
+    "Power draw (CPU / SoC / GPU)": "Leistungsaufnahme (CPU / SoC / GPU)",
+    "GPU voltage": "GPU-Spannung",
+    "NVMe Sensor 1 temperature": "NVMe Sensor 1 Temperatur",
     // --- config category names ---
     "Pinned — stays open": "Angeheftet — bleibt offen",
     "Pin": "Anheften",
