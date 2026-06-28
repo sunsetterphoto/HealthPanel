@@ -204,6 +204,22 @@ ColumnLayout {
         }
         Bar { visible: col.cpuStyle === "bar"; fraction: col._ok ? col.system.cpuPct / 100 : 0; fill: "#3daee9" }
         Spark { visible: col.cpuStyle === "sparkline"; points: col._ok ? col.system.cpuHist : []; maxValue: 100; fill: "#3daee9" }
+        RowLayout {
+            Layout.fillWidth: true
+            visible: col._ok && (col.system.hasCpuPower || col.system.hasSocPower)
+            MLabel { text: col.tr("Power draw") }
+            Item { Layout.fillWidth: true }
+            PC3.Label {
+                text: {
+                    if (!col._ok) return ""
+                    var parts = []
+                    if (col.system.hasCpuPower) parts.push("CPU " + col.system.fmtW(col.system.cpuPowerW))
+                    if (col.system.hasSocPower) parts.push("SoC " + col.system.fmtW(col.system.socPowerW))
+                    return parts.join("   ")
+                }
+                opacity: 0.7; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+            }
+        }
     }
 
     // ---- GPU + VRAM ----
@@ -250,6 +266,22 @@ ColumnLayout {
             opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
         }
         Bar { visible: col.vramStyle === "bar"; fraction: col._ok ? col.system.vramPct / 100 : 0; fill: "#d35400" }
+        RowLayout {
+            Layout.fillWidth: true
+            visible: col._ok && (col.system.hasGpuPower || col.system.hasGpuVoltage)
+            MLabel { text: col.tr("Power draw") }
+            Item { Layout.fillWidth: true }
+            PC3.Label {
+                text: {
+                    if (!col._ok) return ""
+                    var parts = []
+                    if (col.system.hasGpuPower) parts.push(col.system.fmtW(col.system.gpuPowerW))
+                    if (col.system.hasGpuVoltage) parts.push(col.system.fmtVolt(col.system.gpuVoltageV))
+                    return parts.join("   ")
+                }
+                opacity: 0.7; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+            }
+        }
     }
 
     // ---- RAM + swap ----
@@ -311,6 +343,11 @@ ColumnLayout {
                 text: col._ok ? col.system.fmtTemp(col.system.diskTempC) : ""
                 opacity: 0.5; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
             }
+            PC3.Label {
+                visible: col._ok && col.showTemps && col.system.hasDiskTempSensor1
+                text: col._ok ? "S1 " + col.system.fmtTemp(col.system.diskTempSensor1C) : ""
+                opacity: 0.5; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+            }
             Item { Layout.fillWidth: true }
             Ring {
                 visible: col.diskStyle === "ring"
@@ -344,6 +381,25 @@ ColumnLayout {
             PC3.Label { text: "·"; opacity: 0.3; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
             PC3.Label { text: col._ok ? col.system.fmtTbw(col.system.smartTbwTB) : ""; opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
             Item { Layout.fillWidth: true }
+        }
+    }
+
+    // ---- Fans ----
+    SectionRule { visible: col._ok && col.system.hasFan && (col._pm || col.showCpu || col.showRam || col.showDisk) }
+    RowLayout {
+        Layout.fillWidth: true
+        visible: col._ok && col.system.hasFan
+        MLabel { text: col.tr("Fans") }
+        Item { Layout.fillWidth: true }
+        PC3.Label {
+            text: {
+                if (!col._ok) return ""
+                var parts = []
+                for (var i = 0; i < col.system.fanRpms.length; i++)
+                    parts.push(col.system.fmtRpm(col.system.fanRpms[i]))
+                return parts.join("   ")
+            }
+            font.bold: true; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
         }
     }
 

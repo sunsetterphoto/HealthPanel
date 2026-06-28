@@ -13,6 +13,7 @@ var DE = {
     "Threads": "Threads",
     "Down": "Down",
     "Up": "Up",
+    "Fans": "Lüfter",
     // --- battery card ---
     "Charge": "Ladung",
     "left": "verbleibend",
