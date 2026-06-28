@@ -49,10 +49,6 @@
     <entry name="panelLayout" type="String">
       <default>[{"type":"battery","texts":["charge"]}]</default>
     </entry>
-    <!-- Panel/compact: show only the text values (no icons), divided by a thin line -->
-    <entry name="panelTextOnly" type="Bool">
-      <default>false</default>
-    </entry>
 
     <!-- Customizable layout: ordered [{id,v}] lists (order + visibility).
          Defaults equal the historical fixed arrangement. -->

@@ -11,8 +11,6 @@ ColumnLayout {
     property string cfg_panelLayout: '[{"type":"battery","texts":["charge"]}]'
     property string cfg_panelLayoutDefault: '[{"type":"battery","texts":["charge"]}]'
     property string cfg_language: "system"
-    property alias cfg_panelTextOnly: textOnlyCheck.checked
-    property bool  cfg_panelTextOnlyDefault: false
     function tr(s) { return I18n.tr(I18n.resolve(page.cfg_language), s) }
 
     // working copy of the icon list; commit() writes it back to the config string
@@ -38,12 +36,6 @@ ColumnLayout {
         text: page.tr("Choose which icons appear in the panel / compact view and which values are shown as text. Reorder with ↑ ↓.")
     }
 
-    QQC2.CheckBox {
-        id: textOnlyCheck
-        text: page.tr("Text only (no icons), separated by a divider")
-        Layout.topMargin: Kirigami.Units.smallSpacing
-    }
-
     Repeater {
         model: page.items
         delegate: Kirigami.AbstractCard {
@@ -52,6 +44,7 @@ ColumnLayout {
             required property int index
             readonly property string cfgType: modelData.type
             readonly property var cfgTexts: modelData.texts || []
+            readonly property bool cfgIcon: modelData.icon !== false
             Layout.fillWidth: true
             Layout.topMargin: Kirigami.Units.smallSpacing
 
@@ -69,7 +62,7 @@ ColumnLayout {
                         currentIndex: page.typeIndex(iconCard.cfgType)
                         onActivated: {
                             var a = page.items.slice()
-                            a[iconCard.index] = { type: currentValue, texts: [] }
+                            a[iconCard.index] = { type: currentValue, texts: [], icon: iconCard.cfgIcon }
                             page.commit(a)
                         }
                     }
@@ -98,6 +91,15 @@ ColumnLayout {
                     }
                 }
 
+                QQC2.CheckBox {
+                    text: page.tr("Show icon")
+                    checked: iconCard.cfgIcon
+                    onToggled: {
+                        var a = page.items.slice()
+                        a[iconCard.index] = { type: iconCard.cfgType, texts: iconCard.cfgTexts, icon: checked }
+                        page.commit(a)
+                    }
+                }
                 QQC2.Label {
                     text: page.tr("Text beside it:")
                     opacity: 0.7
@@ -118,7 +120,7 @@ ColumnLayout {
                                 var texts = (a[iconCard.index].texts || []).slice()
                                 var pos = texts.indexOf(modelData.k)
                                 if (pos >= 0) texts.splice(pos, 1); else texts.push(modelData.k)
-                                a[iconCard.index] = { type: iconCard.cfgType, texts: texts }
+                                a[iconCard.index] = { type: iconCard.cfgType, texts: texts, icon: iconCard.cfgIcon }
                                 page.commit(a)
                             }
                         }

@@ -23,14 +23,19 @@ MouseArea {
         && compact.system.hasPowerProfile === true
     readonly property bool _vertical: Plasmoid.formFactor === PlasmaCore.Types.Vertical
     readonly property var _layout: PanelMeta.parseLayout(Plasmoid.configuration.panelLayout)
-    // text-only mode: hide icons, separate the values with a thin divider instead
-    readonly property bool _textOnly: Plasmoid.configuration.panelTextOnly === true
-    // index of the first layout item that actually yields text, so the divider is
-    // never drawn before the first *visible* value (e.g. when an earlier item is empty)
-    readonly property int _firstTextIdx: {
-        for (var i = 0; i < _layout.length; i++)
-            if (textFor(_layout[i]).length > 0) return i
-        return 0
+
+    // Per-entry icons (modelData.icon !== false). When an entry has no icon, a thin
+    // divider stands in for it — but only when the previous visible value is ALSO
+    // icon-less, so a text value right after an icon isn't double-separated.
+    function _dividerBefore(i) {
+        var it = _layout[i]
+        if (!it || it.icon !== false) return false        // entry has an icon → no divider
+        if (textFor(it).length === 0) return false        // entry has no text → no divider
+        for (var j = i - 1; j >= 0; j--) {
+            if (textFor(_layout[j]).length > 0)            // nearest preceding visible value
+                return _layout[j].icon === false           // divider only if it too is icon-less
+        }
+        return false                                       // first visible value → no divider
     }
 
     implicitWidth: row.implicitWidth + Kirigami.Units.smallSpacing * 2
@@ -130,10 +135,10 @@ MouseArea {
                 required property int index
                 readonly property string _txt: compact.textFor(modelData)
                 spacing: Kirigami.Units.smallSpacing
-                // divider between values in text-only mode (vertical on a horizontal
-                // panel, horizontal on a vertical panel); never before the first value
+                // divider standing in for a missing icon (vertical on a horizontal
+                // panel, horizontal on a vertical panel)
                 Rectangle {
-                    visible: compact._textOnly && itemRow.index > compact._firstTextIdx && itemRow._txt.length > 0
+                    visible: compact._dividerBefore(itemRow.index)
                     color: Kirigami.Theme.textColor
                     opacity: 0.3
                     Layout.alignment: Qt.AlignCenter
@@ -142,7 +147,7 @@ MouseArea {
                     Layout.preferredHeight: compact._vertical ? 1 : Kirigami.Units.iconSizes.small
                 }
                 Kirigami.Icon {
-                    visible: !compact._textOnly
+                    visible: itemRow.modelData.icon !== false
                     source: compact.iconFor(modelData.type)
                     Layout.alignment: Qt.AlignCenter
                     implicitWidth:  Kirigami.Units.iconSizes.small
