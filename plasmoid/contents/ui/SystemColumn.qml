@@ -9,7 +9,7 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.components as PC3
 import "i18n.js" as I18n
-import "layoutmeta.js" as Layout
+import "layoutmeta.js" as LayoutMeta
 
 ColumnLayout {
     id: col
@@ -36,7 +36,7 @@ ColumnLayout {
 
     // layout-driven order + visibility
     property string layoutJson: ""   // systemLayout config string; empty -> all default
-    readonly property var _order: Layout.parseOrder(col.layoutJson, Layout.systemSections())
+    readonly property var _order: LayoutMeta.parseOrder(col.layoutJson, LayoutMeta.systemSections())
 
     readonly property bool _ok: system !== null && system !== undefined && system.valid === true
     spacing: Kirigami.Units.smallSpacing
