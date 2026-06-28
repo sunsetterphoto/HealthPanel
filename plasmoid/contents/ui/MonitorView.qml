@@ -80,7 +80,13 @@ Item {
                     Layout.bottomMargin: Kirigami.Units.gridUnit
                     visible: { for (var i = 0; i < index; i++) if (view._colOrder[i].v) return true; return false }
                 }
-                Loader { Layout.fillWidth: true; Layout.fillHeight: true; sourceComponent: view._colMap[modelData.id] }
+                Loader {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.minimumWidth: Kirigami.Units.gridUnit * (modelData.id === "controls" ? 11 : 13)
+                    Layout.margins: (modelData.id === "battery") ? 0 : Kirigami.Units.gridUnit * 0.75
+                    sourceComponent: view._colMap[modelData.id]
+                }
             }
         }
     }
@@ -88,12 +94,7 @@ Item {
     Component {
         id: systemCol
         SystemColumn {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            Layout.minimumWidth: Kirigami.Units.gridUnit * 13
-            Layout.margins: Kirigami.Units.gridUnit * 0.75
             clip: true
-            visible: view._showSystem
             lang: view.lang
             system: view.system
             layoutJson: Plasmoid.configuration.systemLayout
@@ -116,11 +117,7 @@ Item {
     Component {
         id: batteryCol
         BatteryCard {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            Layout.minimumWidth: Kirigami.Units.gridUnit * 13
             clip: true
-            visible: view._showBattery
             lang: view.lang
             battery: view.battery
             layoutJson: Plasmoid.configuration.batteryLayout
@@ -130,12 +127,7 @@ Item {
     Component {
         id: controlsCol
         ControlColumn {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            Layout.minimumWidth: Kirigami.Units.gridUnit * 11
-            Layout.margins: Kirigami.Units.gridUnit * 0.75
             clip: true
-            visible: view._showControls
             lang: view.lang
             control: view.control
             showInhibit:          Plasmoid.configuration.showInhibit
