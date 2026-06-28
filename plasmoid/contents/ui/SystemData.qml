@@ -40,6 +40,27 @@ QtObject {
     property real gpuTempC: 0
     property bool hasGpuTemp: false
 
+    // power draw (auto-detected; null in parser -> has*=false)
+    property real cpuPowerW: 0
+    property bool hasCpuPower: false
+    property real socPowerW: 0
+    property bool hasSocPower: false
+    property real gpuPowerW: 0
+    property bool hasGpuPower: false
+
+    // fans
+    property var  fanRpms: []
+    property int  fanMaxRpm: 0
+    property bool hasFan: false
+
+    // GPU voltage
+    property real gpuVoltageV: 0
+    property bool hasGpuVoltage: false
+
+    // extra NVMe temperature (Sensor 1)
+    property real diskTempSensor1C: 0
+    property bool hasDiskTempSensor1: false
+
     property real netDownMBps: 0
     property real netUpMBps: 0
 
@@ -92,6 +113,19 @@ QtObject {
         }
         hasGpuTemp = (r.gpuTempC !== null && r.gpuTempC !== undefined);
         gpuTempC = hasGpuTemp ? r.gpuTempC : 0;
+        hasCpuPower = (r.cpuPowerW !== null && r.cpuPowerW !== undefined);
+        cpuPowerW = hasCpuPower ? r.cpuPowerW : 0;
+        hasSocPower = (r.socPowerW !== null && r.socPowerW !== undefined);
+        socPowerW = hasSocPower ? r.socPowerW : 0;
+        hasGpuPower = (r.gpuPowerW !== null && r.gpuPowerW !== undefined);
+        gpuPowerW = hasGpuPower ? r.gpuPowerW : 0;
+        fanRpms = r.fanRpms || [];
+        fanMaxRpm = r.fanMaxRpm || 0;
+        hasFan = fanRpms.length > 0 && fanMaxRpm > 0;
+        hasGpuVoltage = (r.gpuVoltageV !== null && r.gpuVoltageV !== undefined);
+        gpuVoltageV = hasGpuVoltage ? r.gpuVoltageV : 0;
+        hasDiskTempSensor1 = (r.diskTempSensor1C !== null && r.diskTempSensor1C !== undefined);
+        diskTempSensor1C = hasDiskTempSensor1 ? r.diskTempSensor1C : 0;
         smartValid = r.smartValid === true;
         if (smartValid) {
             smartHealthPct = r.smartHealthPct;
@@ -114,6 +148,9 @@ QtObject {
     function fmtGB(v)    { return v.toFixed(v < 10 ? 1 : 0) + " GB"; }
     function fmtRate(v)  { return (v >= 10 ? v.toFixed(0) : v.toFixed(1)) + " MB/s"; }
     function fmtTemp(c)  { return Math.round(c) + "°C"; }
+    function fmtW(v)    { return v.toFixed(1) + " W"; }
+    function fmtRpm(v)  { return Math.round(v) + " rpm"; }
+    function fmtVolt(v) { return v.toFixed(3) + " V"; }
     function fmtTbw(t)   { return (t >= 100 ? t.toFixed(0) : t.toFixed(1)) + " TBW"; }
     function fmtHours(h) { return String(h).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " h"; }
     function clampW(v)   { return Math.max(0, Math.min(100, v)); }   // bar widths
