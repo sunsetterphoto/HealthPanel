@@ -8,6 +8,7 @@ import org.kde.kirigami as Kirigami
 import org.kde.plasma.components as PC3
 import org.kde.plasma.plasmoid
 import "i18n.js" as I18n
+import "layoutmeta.js" as LayoutMeta
 
 Item {
     id: view
@@ -28,9 +29,14 @@ Item {
     signal openWidgetSettings()
     function tr(s) { return I18n.tr(view.lang, s) }
 
-    readonly property bool _showSystem: Plasmoid.configuration.showSystemColumn
-    readonly property bool _showBattery: Plasmoid.configuration.showBatteryColumn
-    readonly property bool _showControls: Plasmoid.configuration.showControls
+    readonly property var _colOrder: LayoutMeta.parseOrder(Plasmoid.configuration.columnOrder, LayoutMeta.columns())
+    function _colVisible(id) {
+        for (var i = 0; i < _colOrder.length; i++) if (_colOrder[i].id === id) return _colOrder[i].v;
+        return false;
+    }
+    readonly property bool _showSystem: _colVisible("system")
+    readonly property bool _showBattery: _colVisible("battery")
+    readonly property bool _showControls: _colVisible("controls")
     readonly property int _cols: (_showSystem ? 1 : 0) + (_showBattery ? 1 : 0) + (_showControls ? 1 : 0)
 
     // Per-column minimum widths (grid units). The widget's resize floor is the sum of
@@ -54,10 +60,33 @@ Item {
     Layout.preferredWidth: Kirigami.Units.gridUnit * Math.max(15, _contentMinGu + _cols * 2)
     Layout.preferredHeight: Kirigami.Units.gridUnit * 20
 
+    readonly property var _colMap: ({"system": systemCol, "battery": batteryCol, "controls": controlsCol})
+
     RowLayout {
         anchors.fill: parent
         spacing: Kirigami.Units.largeSpacing
+        Repeater {
+            model: view._colOrder
+            delegate: RowLayout {
+                required property var modelData
+                required property int index
+                Layout.fillWidth: modelData.v
+                Layout.fillHeight: true
+                visible: modelData.v
+                spacing: Kirigami.Units.largeSpacing
+                Kirigami.Separator {
+                    Layout.fillHeight: true
+                    Layout.topMargin: Kirigami.Units.gridUnit
+                    Layout.bottomMargin: Kirigami.Units.gridUnit
+                    visible: { for (var i = 0; i < index; i++) if (view._colOrder[i].v) return true; return false }
+                }
+                Loader { Layout.fillWidth: true; Layout.fillHeight: true; sourceComponent: view._colMap[modelData.id] }
+            }
+        }
+    }
 
+    Component {
+        id: systemCol
         SystemColumn {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -67,35 +96,25 @@ Item {
             visible: view._showSystem
             lang: view.lang
             system: view.system
-            showPowerMode: Plasmoid.configuration.showPowerMode
-            showCpu:       Plasmoid.configuration.showCpu
-            showRam:       Plasmoid.configuration.showRam
-            showDisk:      Plasmoid.configuration.showDisk
-            showNet:       Plasmoid.configuration.showNet
-            showSmart:     Plasmoid.configuration.showSmart
-            showTemps:     Plasmoid.configuration.showTemps
-            showGpu:       Plasmoid.configuration.showGpu
+            layoutJson: Plasmoid.configuration.systemLayout
+            showSmart:       Plasmoid.configuration.showSmart
+            showTemps:       Plasmoid.configuration.showTemps
             showPower:       Plasmoid.configuration.showPower
-            showFans:        Plasmoid.configuration.showFans
             showVoltage:     Plasmoid.configuration.showVoltage
             showDiskSensor1: Plasmoid.configuration.showDiskSensor1
             cpuCoresLogical: Plasmoid.configuration.cpuCoresLogical
-            cpuStyle:      Plasmoid.configuration.cpuStyle
-            gpuStyle:      Plasmoid.configuration.gpuStyle
-            vramStyle:     Plasmoid.configuration.vramStyle
-            ramStyle:      Plasmoid.configuration.ramStyle
-            diskStyle:     Plasmoid.configuration.diskStyle
-            netStyle:      Plasmoid.configuration.netStyle
+            cpuStyle:        Plasmoid.configuration.cpuStyle
+            gpuStyle:        Plasmoid.configuration.gpuStyle
+            vramStyle:       Plasmoid.configuration.vramStyle
+            ramStyle:        Plasmoid.configuration.ramStyle
+            diskStyle:       Plasmoid.configuration.diskStyle
+            netStyle:        Plasmoid.configuration.netStyle
             onSetProfile: function(name) { view.setProfile(name) }
         }
+    }
 
-        Kirigami.Separator {
-            Layout.fillHeight: true
-            Layout.topMargin: Kirigami.Units.gridUnit
-            Layout.bottomMargin: Kirigami.Units.gridUnit
-            visible: view._showSystem && (view._showBattery || view._showControls)
-        }
-
+    Component {
+        id: batteryCol
         BatteryCard {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -104,23 +123,12 @@ Item {
             visible: view._showBattery
             lang: view.lang
             battery: view.battery
-            showCycles:      Plasmoid.configuration.showBatCycles
-            showCapacity:    Plasmoid.configuration.showBatCapacity
-            showStatus:      Plasmoid.configuration.showBatStatus
-            showPowerDraw:   Plasmoid.configuration.showBatPower
-            showVoltage:     Plasmoid.configuration.showBatVoltage
-            showSerial:      Plasmoid.configuration.showBatSerial
-            showChargeLimit: Plasmoid.configuration.showBatChargeLimit
-            showTime:        Plasmoid.configuration.showBatTime
+            layoutJson: Plasmoid.configuration.batteryLayout
         }
+    }
 
-        Kirigami.Separator {
-            Layout.fillHeight: true
-            Layout.topMargin: Kirigami.Units.gridUnit
-            Layout.bottomMargin: Kirigami.Units.gridUnit
-            visible: view._showBattery && view._showControls
-        }
-
+    Component {
+        id: controlsCol
         ControlColumn {
             Layout.fillWidth: true
             Layout.fillHeight: true
