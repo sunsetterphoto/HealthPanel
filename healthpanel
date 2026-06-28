@@ -89,7 +89,7 @@ rapl_power() {
     e1=$(cat "$f" 2>/dev/null) || return 0
     sleep "$SAMPLE"
     e2=$(cat "$f" 2>/dev/null) || return 0
-    mx=$(cat /sys/class/powercap/intel-rapl:0/max_energy_range_uj 2>/dev/null)
+    mx=$(cat /sys/class/powercap/intel-rapl:0/max_energy_range_uj 2>/dev/null) || mx=0
     awk -v a="$e1" -v b="$e2" -v m="${mx:-0}" -v dt="$SAMPLE" 'BEGIN{
         de=b-a; if(de<0){ if(m>0) de+=m; else { exit } }
         printf "%.1f", (de/dt)/1e6 }'
@@ -130,7 +130,7 @@ fan_speeds() {
         local f
         for f in "$h"/fan[0-9]*_input; do
             [[ -e "$f" ]] || continue
-            local v; v=$(cat "$f" 2>/dev/null); [[ -n "$v" ]] || continue
+            local v; v=$(cat "$f" 2>/dev/null) || continue; [[ -n "$v" ]] || continue
             cur+="$v "
         done
         local cnt; cnt=$(echo $cur | wc -w)
