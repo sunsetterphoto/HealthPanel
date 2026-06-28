@@ -16,36 +16,15 @@
       <default>system</default>
     </entry>
 
-    <!-- Sichtbarkeit der System-Spalten-Sektionen -->
-    <entry name="showPowerMode" type="Bool">
-      <default>true</default>
-    </entry>
-    <entry name="showCpu" type="Bool">
-      <default>true</default>
-    </entry>
-    <entry name="showRam" type="Bool">
-      <default>true</default>
-    </entry>
-    <entry name="showDisk" type="Bool">
-      <default>true</default>
-    </entry>
-    <entry name="showNet" type="Bool">
-      <default>true</default>
-    </entry>
+    <!-- Detail toggles: rows that appear only when the hardware has the sensor -->
     <entry name="showSmart" type="Bool">
       <default>true</default>
     </entry>
     <entry name="showTemps" type="Bool">
       <default>true</default>
     </entry>
-    <entry name="showGpu" type="Bool">
-      <default>true</default>
-    </entry>
     <!-- New sensor rows (auto-hidden when the hardware lacks the source) -->
     <entry name="showPower" type="Bool">
-      <default>true</default>
-    </entry>
-    <entry name="showFans" type="Bool">
       <default>true</default>
     </entry>
     <entry name="showVoltage" type="Bool">
@@ -97,45 +76,7 @@
       <default>sparkline</default>
     </entry>
 
-    <!-- Sichtbarkeit der Akku-Detailblöcke (Health bleibt immer sichtbar) -->
-    <entry name="showBatCycles" type="Bool">
-      <default>true</default>
-    </entry>
-    <entry name="showBatCapacity" type="Bool">
-      <default>true</default>
-    </entry>
-    <!-- Live values, individually toggleable (formerly one "showBatLive") -->
-    <entry name="showBatStatus" type="Bool">
-      <default>true</default>
-    </entry>
-    <entry name="showBatPower" type="Bool">
-      <default>true</default>
-    </entry>
-    <entry name="showBatVoltage" type="Bool">
-      <default>true</default>
-    </entry>
-    <entry name="showBatSerial" type="Bool">
-      <default>false</default>
-    </entry>
-    <entry name="showBatChargeLimit" type="Bool">
-      <default>true</default>
-    </entry>
-    <entry name="showBatTime" type="Bool">
-      <default>true</default>
-    </entry>
-
-    <!-- Whole-column master toggles -->
-    <entry name="showSystemColumn" type="Bool">
-      <default>true</default>
-    </entry>
-    <entry name="showBatteryColumn" type="Bool">
-      <default>true</default>
-    </entry>
-
-    <!-- Control column (right): quick settings -->
-    <entry name="showControls" type="Bool">
-      <default>true</default>
-    </entry>
+    <!-- Control column (right): quick-setting detail toggles -->
     <entry name="showInhibit" type="Bool">
       <default>true</default>
     </entry>

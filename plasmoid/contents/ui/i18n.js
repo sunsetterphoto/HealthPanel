@@ -81,6 +81,7 @@ var DE = {
     "CPU load": "CPU-Last",
     "VRAM": "VRAM",
     // --- config: battery ---
+    "Battery layout is configured in the Layout tab.": "Die Akku-Anordnung wird im Layout-Tab konfiguriert.",
     "Battery cycles": "Ladezyklen",
     "Capacity (designed / full / remaining)": "Kapazität (Auslegung / Voll / Verbleibend)",
     "Serial number": "Seriennummer",

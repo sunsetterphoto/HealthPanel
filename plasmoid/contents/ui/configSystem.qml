@@ -3,6 +3,7 @@ import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import "i18n.js" as I18n
+import "layoutmeta.js" as LayoutMeta
 
 Kirigami.FormLayout {
     id: form
@@ -10,31 +11,23 @@ Kirigami.FormLayout {
     property string cfg_language: "system"
     function tr(s) { return I18n.tr(I18n.resolve(form.cfg_language), s) }
 
-    // --- master toggle + section visibility ---
-    property alias cfg_showSystemColumn: systemColCheck.checked
-    property bool  cfg_showSystemColumnDefault: true
-    property alias cfg_showPowerMode: powerModeCheck.checked
-    property bool  cfg_showPowerModeDefault: true
-    property alias cfg_showCpu: cpuCheck.checked
-    property bool  cfg_showCpuDefault: true
+    // --- layout keys (reset target; actual editing is in the Layout tab) ---
+    property string cfg_systemLayout: ""
+    property string cfg_systemLayoutDefault: ""
+    property string cfg_batteryLayout: ""
+    property string cfg_batteryLayoutDefault: ""
+    property string cfg_columnOrder: ""
+    property string cfg_columnOrderDefault: ""
+
+    // --- detail toggles (rows that appear only when hardware has the sensor) ---
     property alias cfg_cpuCoresLogical: cpuLogicalCheck.checked
     property bool  cfg_cpuCoresLogicalDefault: false
-    property alias cfg_showGpu: gpuCheck.checked
-    property bool  cfg_showGpuDefault: true
-    property alias cfg_showRam: ramCheck.checked
-    property bool  cfg_showRamDefault: true
-    property alias cfg_showDisk: diskCheck.checked
-    property bool  cfg_showDiskDefault: true
-    property alias cfg_showNet: netCheck.checked
-    property bool  cfg_showNetDefault: true
     property alias cfg_showSmart: smartCheck.checked
     property bool  cfg_showSmartDefault: true
     property alias cfg_showTemps: tempsCheck.checked
     property bool  cfg_showTempsDefault: true
     property alias cfg_showPower: powerCheck.checked
     property bool  cfg_showPowerDefault: true
-    property alias cfg_showFans: fansCheck.checked
-    property bool  cfg_showFansDefault: true
     property alias cfg_showVoltage: voltageCheck.checked
     property bool  cfg_showVoltageDefault: true
     property alias cfg_showDiskSensor1: diskSensor1Check.checked
@@ -65,33 +58,15 @@ Kirigami.FormLayout {
     ]
 
     QQC2.CheckBox {
-        id: systemColCheck
-        Kirigami.FormData.label: form.tr("System column (left):")
-        text: form.tr("Show column")
-    }
-    QQC2.CheckBox {
-        id: powerModeCheck
-        Kirigami.FormData.label: form.tr("Shows:")
-        text: form.tr("Power mode")
-        enabled: systemColCheck.checked
-    }
-    QQC2.CheckBox { id: cpuCheck; text: form.tr("CPU + cores"); enabled: systemColCheck.checked }
-    QQC2.CheckBox {
         id: cpuLogicalCheck
+        Kirigami.FormData.label: form.tr("Shows:")
         text: form.tr("Show logical cores (threads) instead of physical")
-        enabled: systemColCheck.checked && cpuCheck.checked
-        leftPadding: cpuCheck.indicator.width + Kirigami.Units.smallSpacing
     }
-    QQC2.CheckBox { id: ramCheck;   text: form.tr("RAM + swap"); enabled: systemColCheck.checked }
-    QQC2.CheckBox { id: gpuCheck;   text: form.tr("GPU + VRAM"); enabled: systemColCheck.checked }
-    QQC2.CheckBox { id: diskCheck;  text: form.tr("Disk"); enabled: systemColCheck.checked }
-    QQC2.CheckBox { id: netCheck;   text: form.tr("Network"); enabled: systemColCheck.checked }
-    QQC2.CheckBox { id: smartCheck; text: form.tr("SSD SMART (health / hours / TBW)"); enabled: systemColCheck.checked }
-    QQC2.CheckBox { id: tempsCheck; text: form.tr("Temperatures (CPU / disk / GPU)"); enabled: systemColCheck.checked }
-    QQC2.CheckBox { id: powerCheck;       text: form.tr("Power draw (CPU / SoC / GPU)"); enabled: systemColCheck.checked }
-    QQC2.CheckBox { id: fansCheck;        text: form.tr("Fans"); enabled: systemColCheck.checked }
-    QQC2.CheckBox { id: voltageCheck;     text: form.tr("GPU voltage"); enabled: systemColCheck.checked }
-    QQC2.CheckBox { id: diskSensor1Check; text: form.tr("NVMe Sensor 1 temperature"); enabled: systemColCheck.checked }
+    QQC2.CheckBox { id: smartCheck;       text: form.tr("SSD SMART (health / hours / TBW)") }
+    QQC2.CheckBox { id: tempsCheck;       text: form.tr("Temperatures (CPU / disk / GPU)") }
+    QQC2.CheckBox { id: powerCheck;       text: form.tr("Power draw (CPU / SoC / GPU)") }
+    QQC2.CheckBox { id: voltageCheck;     text: form.tr("GPU voltage") }
+    QQC2.CheckBox { id: diskSensor1Check; text: form.tr("NVMe Sensor 1 temperature") }
 
     Item { Kirigami.FormData.isSection: true }
 
@@ -100,7 +75,6 @@ Kirigami.FormLayout {
         Kirigami.FormData.label: form.tr("Style — CPU:")
         textRole: "text"; valueRole: "value"
         model: form.graphStyles
-        enabled: systemColCheck.checked && cpuCheck.checked
         onActivated: form.cfg_cpuStyle = currentValue
         Component.onCompleted: currentIndex = indexOfValue(form.cfg_cpuStyle)
     }
@@ -109,7 +83,6 @@ Kirigami.FormLayout {
         Kirigami.FormData.label: form.tr("Style — GPU load:")
         textRole: "text"; valueRole: "value"
         model: form.graphStyles
-        enabled: systemColCheck.checked && gpuCheck.checked
         onActivated: form.cfg_gpuStyle = currentValue
         Component.onCompleted: currentIndex = indexOfValue(form.cfg_gpuStyle)
     }
@@ -118,7 +91,6 @@ Kirigami.FormLayout {
         Kirigami.FormData.label: form.tr("Style — VRAM:")
         textRole: "text"; valueRole: "value"
         model: [{ text: form.tr("Bar"), value: "bar" }, { text: form.tr("Text only"), value: "text" }]
-        enabled: systemColCheck.checked && gpuCheck.checked
         onActivated: form.cfg_vramStyle = currentValue
         Component.onCompleted: currentIndex = indexOfValue(form.cfg_vramStyle)
     }
@@ -127,7 +99,6 @@ Kirigami.FormLayout {
         Kirigami.FormData.label: form.tr("Style — RAM:")
         textRole: "text"; valueRole: "value"
         model: form.graphStyles
-        enabled: systemColCheck.checked && ramCheck.checked
         onActivated: form.cfg_ramStyle = currentValue
         Component.onCompleted: currentIndex = indexOfValue(form.cfg_ramStyle)
     }
@@ -136,7 +107,6 @@ Kirigami.FormLayout {
         Kirigami.FormData.label: form.tr("Style — Disk:")
         textRole: "text"; valueRole: "value"
         model: form.graphStyles
-        enabled: systemColCheck.checked && diskCheck.checked
         onActivated: form.cfg_diskStyle = currentValue
         Component.onCompleted: currentIndex = indexOfValue(form.cfg_diskStyle)
     }
@@ -145,8 +115,19 @@ Kirigami.FormLayout {
         Kirigami.FormData.label: form.tr("Style — Network:")
         textRole: "text"; valueRole: "value"
         model: form.netStyles
-        enabled: systemColCheck.checked && netCheck.checked
         onActivated: form.cfg_netStyle = currentValue
         Component.onCompleted: currentIndex = indexOfValue(form.cfg_netStyle)
+    }
+
+    Item { Kirigami.FormData.isSection: true }
+
+    QQC2.Button {
+        text: form.tr("Reset to defaults")
+        icon.name: "edit-reset"
+        onClicked: {
+            form.cfg_systemLayout  = LayoutMeta.serialize(LayoutMeta.defaultOrder(LayoutMeta.systemSections()))
+            form.cfg_batteryLayout = LayoutMeta.serialize(LayoutMeta.defaultOrder(LayoutMeta.batteryBlocks()))
+            form.cfg_columnOrder   = LayoutMeta.serialize(LayoutMeta.defaultOrder(LayoutMeta.columns()))
+        }
     }
 }

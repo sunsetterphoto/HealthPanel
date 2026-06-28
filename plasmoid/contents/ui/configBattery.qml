@@ -10,41 +10,8 @@ Kirigami.FormLayout {
     property string cfg_language: "system"
     function tr(s) { return I18n.tr(I18n.resolve(form.cfg_language), s) }
 
-    property alias cfg_showBatteryColumn: batteryColCheck.checked
-    property bool  cfg_showBatteryColumnDefault: true
-    property alias cfg_showBatCycles: batCyclesCheck.checked
-    property bool  cfg_showBatCyclesDefault: true
-    property alias cfg_showBatCapacity: batCapacityCheck.checked
-    property bool  cfg_showBatCapacityDefault: true
-    property alias cfg_showBatStatus: batStatusCheck.checked
-    property bool  cfg_showBatStatusDefault: true
-    property alias cfg_showBatPower: batPowerCheck.checked
-    property bool  cfg_showBatPowerDefault: true
-    property alias cfg_showBatVoltage: batVoltageCheck.checked
-    property bool  cfg_showBatVoltageDefault: true
-    property alias cfg_showBatSerial: batSerialCheck.checked
-    property bool  cfg_showBatSerialDefault: false
-    property alias cfg_showBatTime: batTimeCheck.checked
-    property bool  cfg_showBatTimeDefault: true
-    property alias cfg_showBatChargeLimit: batChargeCheck.checked
-    property bool  cfg_showBatChargeLimitDefault: true
-
-    QQC2.CheckBox {
-        id: batteryColCheck
-        Kirigami.FormData.label: form.tr("Battery column (middle):")
-        text: form.tr("Show column")
+    QQC2.Label {
+        text: form.tr("Battery layout is configured in the Layout tab.")
+        wrapMode: Text.WordWrap
     }
-    QQC2.CheckBox {
-        id: batCyclesCheck
-        Kirigami.FormData.label: form.tr("Shows:")
-        text: form.tr("Battery cycles")
-        enabled: batteryColCheck.checked
-    }
-    QQC2.CheckBox { id: batCapacityCheck; text: form.tr("Capacity (designed / full / remaining)"); enabled: batteryColCheck.checked }
-    QQC2.CheckBox { id: batStatusCheck;   text: form.tr("Status"); enabled: batteryColCheck.checked }
-    QQC2.CheckBox { id: batPowerCheck;    text: form.tr("Power draw"); enabled: batteryColCheck.checked }
-    QQC2.CheckBox { id: batVoltageCheck;  text: form.tr("Voltage"); enabled: batteryColCheck.checked }
-    QQC2.CheckBox { id: batTimeCheck;     text: form.tr("Estimated remaining time (hours)"); enabled: batteryColCheck.checked }
-    QQC2.CheckBox { id: batSerialCheck;   text: form.tr("Serial number"); enabled: batteryColCheck.checked }
-    QQC2.CheckBox { id: batChargeCheck;   text: form.tr("Vendor charge thresholds"); enabled: batteryColCheck.checked }
 }
