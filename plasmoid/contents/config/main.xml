@@ -71,6 +71,18 @@
       <default>[{"type":"battery","texts":["charge"]}]</default>
     </entry>
 
+    <!-- Customizable layout: ordered [{id,v}] lists (order + visibility).
+         Defaults equal the historical fixed arrangement. -->
+    <entry name="systemLayout" type="String">
+      <default>[{"id":"powerMode","v":true},{"id":"cpu","v":true},{"id":"gpu","v":true},{"id":"ram","v":true},{"id":"disk","v":true},{"id":"fans","v":true},{"id":"net","v":true}]</default>
+    </entry>
+    <entry name="batteryLayout" type="String">
+      <default>[{"id":"cycles","v":true},{"id":"capacity","v":true},{"id":"status","v":true},{"id":"power","v":true},{"id":"voltage","v":true},{"id":"time","v":true},{"id":"serial","v":false},{"id":"chargeLimit","v":true}]</default>
+    </entry>
+    <entry name="columnOrder" type="String">
+      <default>[{"id":"system","v":true},{"id":"battery","v":true},{"id":"controls","v":true}]</default>
+    </entry>
+
     <!-- Anzeige-Stil pro Metrik: bar | ring | sparkline (netz: text | sparkline) -->
     <entry name="cpuStyle" type="String">
       <default>sparkline</default>
