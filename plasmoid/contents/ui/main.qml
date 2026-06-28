@@ -63,11 +63,14 @@ PlasmoidItem {
         "echo '===STAT1==='; cat /proc/stat; " +
         "echo '===NET1==='; cat /proc/net/dev; " +
         "echo '===DISK1==='; cat /proc/diskstats; " +
+        "echo '===RAPL1==='; cat /sys/class/powercap/intel-rapl:0/energy_uj 2>/dev/null; " +
         "sleep 0.5; " +
         "echo '===T2==='; date +%s.%N; " +
         "echo '===STAT2==='; cat /proc/stat; " +
         "echo '===NET2==='; cat /proc/net/dev; " +
         "echo '===DISK2==='; cat /proc/diskstats; " +
+        "echo '===RAPL2==='; cat /sys/class/powercap/intel-rapl:0/energy_uj 2>/dev/null; " +
+        "echo '===RAPLMAX==='; cat /sys/class/powercap/intel-rapl:0/max_energy_range_uj 2>/dev/null; " +
         "echo '===MEM==='; cat /proc/meminfo; " +
         "echo '===CORES==='; for c in /sys/devices/system/cpu/cpu[0-9]*; do echo \"$(basename $c) $(cat $c/topology/core_id 2>/dev/null)\"; done; " +
         "echo '===DF==='; df -B1 --output=source,used,size / | tail -1; " +
@@ -76,7 +79,30 @@ PlasmoidItem {
         "echo '===GPU==='; for c in /sys/class/drm/card*/device; do " +
         "if [ -e \"$c/gpu_busy_percent\" ]; then echo \"BUSY=$(cat $c/gpu_busy_percent)\"; " +
         "echo \"VRAMUSED=$(cat $c/mem_info_vram_used 2>/dev/null)\"; " +
-        "echo \"VRAMTOTAL=$(cat $c/mem_info_vram_total 2>/dev/null)\"; break; fi; done"
+        "echo \"VRAMTOTAL=$(cat $c/mem_info_vram_total 2>/dev/null)\"; break; fi; done; " +
+        "echo '===POWER==='; " +
+        "HB=0; for b in /sys/class/power_supply/*; do [ \"$(cat \"$b/type\" 2>/dev/null)\" = Battery ] && HB=1 && break; done; echo \"HASBATTERY=$HB\"; " +
+        "for c in /sys/class/drm/card[0-9]*/device; do " +
+        "  ph=\"$c/hwmon\"; [ -d \"$ph\" ] || continue; " +
+        "  for hw in \"$ph\"/hwmon*; do [ -e \"$hw/power1_input\" ] || continue; " +
+        "    drv=$(basename \"$(readlink -f \"$c/driver\" 2>/dev/null)\" 2>/dev/null); " +
+        "    bv=$(cat \"$c/boot_vga\" 2>/dev/null || echo 0); " +
+        "    echo \"CARD=$(basename $(dirname $c)) BOOTVGA=${bv:-0} DRIVER=${drv:-unknown} PPT=$(cat \"$hw/power1_input\" 2>/dev/null || echo 0)\"; " +
+        "  done; done; " +
+        "echo '===FANS==='; for h in /sys/class/hwmon/hwmon*; do n=$(cat \"$h/name\" 2>/dev/null); " +
+        "  for f in \"$h\"/fan[0-9]*_input; do [ -e \"$f\" ] || continue; " +
+        "    v=$(cat \"$f\" 2>/dev/null); [ -n \"$v\" ] || continue; " +
+        "    echo \"$n $(basename \"$f\" | sed 's/_input//')=$v\"; done; done; " +
+        "echo '===VOLTS==='; for h in /sys/class/hwmon/hwmon*; do " +
+        "  [ \"$(cat \"$h/name\" 2>/dev/null)\" = amdgpu ] || continue; " +
+        "  for v in \"$h\"/in[0-9]*_input; do [ -e \"$v\" ] || continue; " +
+        "    lbl=$(cat \"${v%_input}_label\" 2>/dev/null); [ -n \"$lbl\" ] || continue; " +
+        "    echo \"$lbl=$(awk -v x=$(cat \"$v\") 'BEGIN{printf \"%d\", x}')\"; done; done; " +
+        "echo '===TEMPSX==='; for h in /sys/class/hwmon/hwmon*; do n=$(cat \"$h/name\" 2>/dev/null); " +
+        "  for t in \"$h\"/temp[0-9]*_input; do [ -e \"$t\" ] || continue; " +
+        "    v=$(cat \"$t\" 2>/dev/null); [ -n \"$v\" ] || continue; " +
+        "    lbl=$(cat \"${t%_input}_label\" 2>/dev/null | tr -d ' '); [ -n \"$lbl\" ] || continue; " +
+        "    echo \"$n:$lbl=$v\"; done; done"
 
     readonly property string _profileGetCmd:
         "busctl --system get-property net.hadess.PowerProfiles " +
