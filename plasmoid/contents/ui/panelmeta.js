@@ -16,14 +16,14 @@ function types() {
             { k: "power",    l: "CPU power (W)" },
             { k: "socpower", l: "SoC power (W)" }
         ] },
-        { type: "gpu", label: "GPU", icon: "video-card", texts: [
+        { type: "gpu", label: "GPU", icon: "monitor", texts: [
             { k: "load",    l: "Load %" },
             { k: "temp",    l: "Temperature" },
             { k: "power",   l: "GPU power (W)" },
             { k: "vram",    l: "VRAM %" },
             { k: "voltage", l: "GPU voltage (V)" }
         ] },
-        { type: "fan", label: "Fan", icon: "sensors", texts: [
+        { type: "fan", label: "Fan", icon: "temperature-normal", texts: [
             { k: "max",  l: "Speed (rpm)" },
             { k: "fan1", l: "Fan 1" },
             { k: "fan2", l: "Fan 2" },
