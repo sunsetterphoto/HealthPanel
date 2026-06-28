@@ -25,6 +25,13 @@ MouseArea {
     readonly property var _layout: PanelMeta.parseLayout(Plasmoid.configuration.panelLayout)
     // text-only mode: hide icons, separate the values with a thin divider instead
     readonly property bool _textOnly: Plasmoid.configuration.panelTextOnly === true
+    // index of the first layout item that actually yields text, so the divider is
+    // never drawn before the first *visible* value (e.g. when an earlier item is empty)
+    readonly property int _firstTextIdx: {
+        for (var i = 0; i < _layout.length; i++)
+            if (textFor(_layout[i]).length > 0) return i
+        return 0
+    }
 
     implicitWidth: row.implicitWidth + Kirigami.Units.smallSpacing * 2
     implicitHeight: Math.max(row.implicitHeight, Kirigami.Units.iconSizes.small)
@@ -126,7 +133,7 @@ MouseArea {
                 // divider between values in text-only mode (vertical on a horizontal
                 // panel, horizontal on a vertical panel); never before the first value
                 Rectangle {
-                    visible: compact._textOnly && itemRow.index > 0 && itemRow._txt.length > 0
+                    visible: compact._textOnly && itemRow.index > compact._firstTextIdx && itemRow._txt.length > 0
                     color: Kirigami.Theme.textColor
                     opacity: 0.3
                     Layout.alignment: Qt.AlignCenter
