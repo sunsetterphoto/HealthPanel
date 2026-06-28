@@ -275,3 +275,36 @@ test('parseTempSensors maps chip:label -> °C', () => {
   assert.equal(t['nvme:Sensor1'], 52.85);
   assert.equal(t['nvme:Composite'], 38.85);
 });
+
+const PROBE_SENSORS = [
+  PROBE,                       // reuse the existing complete probe fixture
+  '===RAPL1===', '1000000',
+  '===RAPL2===', '7000000',    // +6,000,000 µJ over the 0.5s T1->T2 = 12 W
+  '===RAPLMAX===', '262143328850',
+  '===POWER===', 'HASBATTERY=1\nCARD=0 BOOTVGA=1 DRIVER=amdgpu PPT=19067000',
+  '===FANS===', 'thinkpad fan1=4385\nthinkpad fan2=4379',
+  '===VOLTS===', 'vddgfx=1285',
+  '===TEMPSX===', 'nvme:Composite=38850\nnvme:Sensor1=52850',
+].join('\n');
+
+test('parseProbe surfaces power/fan/voltage/sensor fields', () => {
+  const r = S.parseProbe(PROBE_SENSORS);
+  assert.equal(r.valid, true);
+  assert.ok(Math.abs(r.cpuPowerW - 12) < 0.05);
+  assert.ok(Math.abs(r.socPowerW - 19.067) < 1e-3);
+  assert.equal(r.gpuPowerW, null);
+  assert.deepEqual(r.fanRpms, [4385, 4379]);
+  assert.equal(r.fanMaxRpm, 4385);
+  assert.ok(Math.abs(r.gpuVoltageV - 1.285) < 1e-9);
+  assert.equal(r.diskTempSensor1C, 52.85);
+});
+
+test('parseProbe leaves new fields absent when sections missing', () => {
+  const r = S.parseProbe(PROBE);   // original fixture, no new sections
+  assert.equal(r.cpuPowerW, null);
+  assert.equal(r.socPowerW, null);
+  assert.equal(r.gpuPowerW, null);
+  assert.deepEqual(r.fanRpms, []);
+  assert.equal(r.gpuVoltageV, null);
+  assert.equal(r.diskTempSensor1C, null);
+});

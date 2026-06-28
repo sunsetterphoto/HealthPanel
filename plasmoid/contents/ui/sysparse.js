@@ -207,6 +207,12 @@ function parseProbe(stdout) {
     var temps = parseTemps(s.TEMPS || "");
     var smart = parseSmart(s.SMART || "");
     var gpu = parseGpu(s.GPU || "");
+    var cpuPowerW = parseRaplPower(s.RAPL1 || "", s.RAPL2 || "", s.RAPLMAX || "", dt);
+    var pwr = classifyGpuPower(parsePowerSection(s.POWER || ""));
+    var fans = parseFans(s.FANS || "");
+    var volts = parseVolts(s.VOLTS || "");
+    var tsens = parseTempSensors(s.TEMPSX || "");
+    var diskS1 = (tsens["nvme:Sensor1"] !== undefined) ? tsens["nvme:Sensor1"] : null;
 
     return {
         valid: true,
@@ -233,7 +239,14 @@ function parseProbe(stdout) {
         gpuBusy: gpu.busy,
         vramUsedGB: gpu.vramUsedGB,
         vramTotalGB: gpu.vramTotalGB,
-        vramPct: gpu.vramPct
+        vramPct: gpu.vramPct,
+        cpuPowerW: cpuPowerW,
+        socPowerW: pwr.socW,
+        gpuPowerW: pwr.gpuW,
+        fanRpms: fans.fans,
+        fanMaxRpm: fans.maxRpm,
+        gpuVoltageV: volts.gpuVoltageV,
+        diskTempSensor1C: diskS1
     };
 }
 
