@@ -1,7 +1,8 @@
 // layoutmeta.js — ordered + visible layout lists for the customizable widget
 // areas (system sections, battery blocks, main columns). Pure JS (NO
-// `.pragma library`), shared by QML (import "layoutmeta.js" as Layout) and Node
-// tests (require). English label strings; the UI translates them via i18n.js.
+// `.pragma library`), shared by QML (import "layoutmeta.js" as LayoutMeta — NOT
+// `as Layout`, which would clash with the QtQuick.Layouts attached property) and
+// Node tests (require). English label strings; the UI translates them via i18n.js.
 
 function systemSections() {
     return [
