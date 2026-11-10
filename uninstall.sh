@@ -48,6 +48,12 @@ if [[ -e /etc/udev/rules.d/99-healthpanel-rapl.rules ]]; then
     sudo udevadm control --reload || true
 fi
 
+# --- optional sensor modules list (if it was enabled) ---
+if [[ -e /etc/modules-load.d/healthpanel.conf ]]; then
+    echo "Removing sensor module list (Module bleiben bis zum Neustart geladen) ..."
+    sudo rm -fv /etc/modules-load.d/healthpanel.conf
+fi
+
 echo
 echo "Done. HealthPanel entfernt."
 echo "  Akku-History bleibt unter ~/.local/state/healthpanel/ (manuell löschen falls gewünscht)."

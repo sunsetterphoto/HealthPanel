@@ -8,7 +8,21 @@
 set -euo pipefail
 
 ENABLE_CPU_POWER=0
-for a in "$@"; do [[ "$a" == "--enable-cpu-power" ]] && ENABLE_CPU_POWER=1; done
+ENABLE_SENSOR_MODULES=0
+for a in "$@"; do
+    case "$a" in
+        --enable-cpu-power)      ENABLE_CPU_POWER=1 ;;
+        --enable-sensor-modules) ENABLE_SENSOR_MODULES=1 ;;
+        -h|--help)
+            echo "Usage: ./install.sh [--enable-cpu-power] [--enable-sensor-modules]"
+            echo "  --enable-cpu-power       make RAPL CPU package power readable (udev rule)"
+            echo "  --enable-sensor-modules  load optional hwmon modules at boot when the hardware"
+            echo "                           has them: drivetemp (SATA drive temperatures) and"
+            echo "                           hp-wmi-sensors (fans/ambient on HP business desktops)"
+            exit 0 ;;
+        *) echo "Unbekannte Option: $a (siehe ./install.sh --help)" >&2; exit 2 ;;
+    esac
+done
 
 if [ "${EUID:-$(id -u)}" -eq 0 ]; then
     echo "Bitte OHNE sudo ausführen: ./install.sh" >&2
@@ -103,4 +117,41 @@ if [[ "$ENABLE_CPU_POWER" -eq 1 ]]; then
     echo "  CPU-Power aktiv. Rückgängig: ./uninstall.sh oder Regel in /etc/udev/rules.d entfernen."
 else
     echo "CPU-Power (RAPL) NICHT aktiviert. Optional einschalten mit: ./install.sh --enable-cpu-power"
+fi
+
+# ---- optional: extra hwmon sensor modules (opt-in, needs root) ----
+# Some sensors only exist once a kernel module is loaded that no distro loads by
+# default. Only modules that match this machine's hardware are considered:
+#   drivetemp       temperatures of SATA drives
+#   hp-wmi-sensors  fan speeds + ambient temperature on HP business desktops /
+#                   workstations (HP's numeric-sensor WMI interface)
+HP_WMI_SENSOR_GUID="8F1F6435-9F42-42C8-BADC-0E9424F20C9A"
+WANT_MODS=()
+if lsblk -dno TRAN 2>/dev/null | grep -qx sata && modinfo drivetemp >/dev/null 2>&1; then
+    WANT_MODS+=(drivetemp)
+fi
+if compgen -G "/sys/bus/wmi/devices/${HP_WMI_SENSOR_GUID}*" >/dev/null \
+   && modinfo hp-wmi-sensors >/dev/null 2>&1; then
+    WANT_MODS+=(hp-wmi-sensors)
+fi
+if [[ "$ENABLE_SENSOR_MODULES" -eq 1 ]]; then
+    if [[ ${#WANT_MODS[@]} -eq 0 ]]; then
+        echo "Sensor-Module: auf dieser Hardware nichts nachzuladen."
+    else
+        echo "Aktiviere Sensor-Module: ${WANT_MODS[*]} (sudo erforderlich)…"
+        printf '%s\n' "# HealthPanel: optional hwmon sensor modules (./install.sh --enable-sensor-modules)" \
+            "${WANT_MODS[@]}" | sudo tee /etc/modules-load.d/healthpanel.conf >/dev/null
+        command -v restorecon >/dev/null 2>&1 && sudo restorecon -F /etc/modules-load.d/healthpanel.conf || true
+        for m in "${WANT_MODS[@]}"; do sudo modprobe "$m" || echo "  WARNUNG: modprobe $m fehlgeschlagen"; done
+        echo "  Geladen und für jeden Boot eingetragen: /etc/modules-load.d/healthpanel.conf"
+    fi
+else
+    MISSING=()
+    for m in ${WANT_MODS[@]+"${WANT_MODS[@]}"}; do
+        [[ -d "/sys/module/${m//-/_}" ]] || MISSING+=("$m")
+    done
+    if [[ ${#MISSING[@]} -gt 0 ]]; then
+        echo "Hinweis: weitere Sensoren verfügbar über Kernel-Modul(e): ${MISSING[*]}"
+        echo "  Einschalten mit: ./install.sh --enable-sensor-modules"
+    fi
 fi

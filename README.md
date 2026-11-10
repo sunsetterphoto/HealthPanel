@@ -4,8 +4,9 @@ A KDE Plasma 6 widget that puts your machine's vital signs **and** quick control
 in one place: a live system column, a detailed battery panel, and a quick-controls
 column — in a single tidy popup, with a configurable panel/compact view.
 
-> Developed and tested on Wayland with Plasma 6 (Qt 6.11); designed to run on any
-> Linux laptop or desktop running Plasma 6.
+> Developed and tested on Wayland with Plasma 6 (Qt 6.11) — on a laptop (ThinkPad
+> Z13, AMD) and a desktop workstation (HP Z4 G4, Intel + two NVIDIA cards);
+> designed to run on any Linux laptop or desktop running Plasma 6.
 
 ![HealthPanel](screenshots/HealthPanelWidget.png)
 
@@ -24,12 +25,15 @@ Each section can be reordered or hidden; each metric has a selectable display st
   (via `power-profiles-daemon` or `tuned-ppd`; no root, no password prompt)
 - **CPU** — total load + per-core mini-bars (physical cores or logical threads) +
   temperature + power draw
-- **GPU + VRAM** — load, VRAM usage, temperature, power and voltage (AMD `amdgpu`,
-  when present)
+- **GPU + VRAM** — load, VRAM usage, temperature, power, fan duty and voltage,
+  **one block per GPU**: AMD via `amdgpu` sysfs, NVIDIA (proprietary driver) via
+  `nvidia-smi`
 - **RAM + Swap** — usage in % and GB
-- **Disk** — root-filesystem usage, read/write throughput, temperature
-  (Composite + the extra NVMe "Sensor 1")
-- **Fans** — per-fan speed in RPM
+- **Disk** — root-filesystem usage, read/write throughput, temperature of the
+  drive backing `/` (Composite + the extra NVMe "Sensor 1"), plus the temperatures
+  of all other drives (NVMe, and SATA with the `drivetemp` module)
+- **Fans** — per-fan speed in RPM, with the fan names when the driver labels them
+  ("CPU0 Fan", "Rear Chassis Fan0", …), and the chassis ambient temperature
 - **Network** — down/up throughput (text or sparkline)
 - **SSD SMART** — health, power-on hours, terabytes written (NVMe and SATA)
 
@@ -54,6 +58,30 @@ HealthPanel auto-detects and labels power draw by its true source:
 Fan speed, GPU voltage, and the extra NVMe "Sensor 1" temperature are read
 without any extra privileges. Any value your hardware doesn't expose is hidden
 automatically.
+
+#### Optional sensor modules
+
+Some sensors only appear once a kernel module is loaded that distros don't load
+by default:
+
+- **`drivetemp`** — temperatures of SATA SSDs/HDDs
+- **`hp-wmi-sensors`** — fan speeds and ambient temperature on HP business
+  desktops / workstations (e.g. the Z series), which expose no fans otherwise
+
+```sh
+./install.sh --enable-sensor-modules
+```
+
+This loads whichever of them match your hardware and lists them in
+`/etc/modules-load.d/healthpanel.conf` so they come back after a reboot. A plain
+`./install.sh` only prints a hint when such sensors are available.
+`./uninstall.sh` removes the list again.
+
+### Desktops and workstations (no battery)
+
+Without a battery the battery column hides itself, battery entries in the panel
+view are skipped (the default panel layout falls back to CPU load), the tooltip
+shows a CPU / GPU / RAM summary, and the daily battery snapshot is a no-op.
 
 ### Battery column — detailed health
 
@@ -108,7 +136,10 @@ the **System default** or can be forced to **German** or **English**.
 - For **live power-profile switching**: `power-profiles-daemon` or `tuned-ppd`
   (most modern distros ship one). Without it the switch is hidden.
 
-CPU / RAM / disk / network / temperatures / GPU need nothing extra — they come
+- For **NVIDIA GPUs** (proprietary driver): `nvidia-smi`, which ships with the
+  driver. AMD GPUs need nothing extra.
+
+CPU / RAM / disk / network / temperatures / AMD GPU need nothing extra — they come
 from `/proc` and `/sys` (`hwmon`, `drm`). The control sliders use the screen,
 keyboard and audio services already present on a normal Plasma desktop.
 
@@ -183,11 +214,16 @@ sources:
   `/proc/meminfo`, `df` on `/`, `/proc/diskstats` and `/proc/net/dev`. These are
   universal and unambiguous.
 - **GPU** comes from `drm`/`sysfs` (`gpu_busy_percent`, `mem_info_vram_*`) with
-  its temperature from the matching `amdgpu` `hwmon`.
+  its temperature from the matching `amdgpu` `hwmon`. NVIDIA's proprietary driver
+  exposes none of that in sysfs, so those cards are read with one `nvidia-smi`
+  query per refresh. With several GPUs each gets its own block; the panel view
+  shows the first one.
 - **Temperatures** are matched **by sensor name** in `hwmon`, not picked at
   random: the CPU temperature only from `k10temp` / `coretemp` / `zenpower` /
-  `cpu_thermal` / `soc_thermal`, the disk temperature only from `nvme`. An
-  unrelated chip's sensor is never shown as the CPU or disk temperature.
+  `cpu_thermal` / `soc_thermal`. The disk temperature is the sensor that belongs
+  to the drive backing `/` (resolved through LUKS/LVM/btrfs with `lsblk`) — with
+  several drives it is never just "the first NVMe". An unrelated chip's sensor
+  is never shown as the CPU or disk temperature.
 - The **battery** is the first `/sys/class/power_supply` device of type
   *Battery*; the **disk** for SMART is the whole disk backing `/`.
 
@@ -196,7 +232,10 @@ guessed**.
 
 ## Hardware notes
 
-HealthPanel was developed and tested on a **Lenovo ThinkPad Z13 Gen 2**; what you
+HealthPanel was developed on a **Lenovo ThinkPad Z13 Gen 2** and is also tested
+on an **HP Z4 G4** workstation (Core i9, two NVIDIA cards, NVMe + SATA drives, no
+battery). On the Z4 the fans and the ambient sensor need `hp-wmi-sensors` and the
+SATA drive temperatures need `drivetemp` — see *Optional sensor modules*. What you
 actually see depends on what your hardware and firmware expose. Two sensors happen
 to be unreachable from Linux *on the Z13 Gen 2 specifically* — **your laptop may
 well expose them:**
@@ -212,7 +251,7 @@ well expose them:**
 
 - All parsing/maths lives in pure JS — `sysparse.js` for the sensors and
   `layoutmeta.js` for the configurable layout — shared by QML and Node and
-  unit-tested with `node --test tests/`.
+  unit-tested with `node --test tests/*.js`.
 - The expanded view renders data-driven from three small JSON layout settings, so
   reordering or hiding any section/block/column is just an edit to that list.
 - `SystemData.qml`, `BatteryData.qml` and `ControlData.qml` feed probe output

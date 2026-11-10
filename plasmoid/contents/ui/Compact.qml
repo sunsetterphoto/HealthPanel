@@ -22,7 +22,16 @@ MouseArea {
     readonly property bool _hasProfile: compact.system !== null && compact.system !== undefined
         && compact.system.hasPowerProfile === true
     readonly property bool _vertical: Plasmoid.formFactor === PlasmaCore.Types.Vertical
-    readonly property var _layout: PanelMeta.parseLayout(Plasmoid.configuration.panelLayout)
+    // On a machine without a battery (desktop/workstation) battery entries are
+    // dropped; if that leaves nothing — e.g. the default layout — show CPU load.
+    readonly property bool _noBattery: compact._ready && compact.battery.probed === true
+        && compact.battery.present !== true
+    readonly property var _layout: {
+        var l = PanelMeta.parseLayout(Plasmoid.configuration.panelLayout)
+        if (!compact._noBattery) return l
+        l = l.filter(function (e) { return e && e.type !== "battery" })
+        return l.length > 0 ? l : [{ type: "cpu", texts: ["load"] }]
+    }
 
     // Per-entry icons (modelData.icon !== false). When an entry has no icon, a thin
     // divider stands in for it — but only when the previous visible value is ALSO
@@ -101,6 +110,7 @@ MouseArea {
             if (key === "power")   return s.hasGpuPower ? s.fmtW(s.gpuPowerW) : ""
             if (key === "vram")    return s.hasGpu ? Math.round(s.vramPct) + "%" : ""
             if (key === "voltage") return s.hasGpuVoltage ? s.fmtVolt(s.gpuVoltageV) : ""
+            if (key === "fanpct")  return s.hasGpuFanPct ? Math.round(s.gpuFanPct) + "%" : ""
         } else if (type === "fan") {
             if (key === "max")  return s.hasFan ? s.fmtRpm(s.fanMaxRpm) : ""
             if (key === "fan1") return (s.fanRpms.length > 0) ? s.fmtRpm(s.fanRpms[0]) : ""

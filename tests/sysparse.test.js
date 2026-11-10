@@ -308,3 +308,85 @@ test('parseProbe leaves new fields absent when sections missing', () => {
   assert.equal(r.gpuVoltageV, null);
   assert.equal(r.diskTempSensor1C, null);
 });
+
+// ---- desktop / workstation hardware (NVIDIA, several drives, labelled fans) ----
+
+const NVGPU = [
+  '0, 00000000:15:00.0, Quadro RTX 4000, 6, 447, 8192, 35, 9.57, 30',
+  '1, 00000000:21:00.0, NVIDIA RTX A4500, 0, 66, 20470, 32, 5.96, 30',
+].join('\n');
+
+test('parseNvidia reads one entry per nvidia-smi line', () => {
+  const g = S.parseNvidia(NVGPU);
+  assert.equal(g.length, 2);
+  assert.equal(g[0].name, 'Quadro RTX 4000');
+  assert.equal(g[1].name, 'RTX A4500');          // "NVIDIA " prefix dropped
+  assert.equal(g[0].busy, 6);
+  assert.ok(Math.abs(g[0].vramTotalGB - 8) < 1e-9);
+  assert.ok(Math.abs(g[0].vramPct - 447 / 8192 * 100) < 1e-9);
+  assert.equal(g[0].tempC, 35);
+  assert.equal(g[0].powerW, 9.57);
+  assert.equal(g[0].fanPct, 30);
+  assert.equal(g[0].voltageV, null);
+});
+test('parseNvidia maps unsupported fields to null and ignores junk', () => {
+  const g = S.parseNvidia('0, 00000000:01:00.0, NVIDIA GeForce RTX 4060 Laptop GPU, 12, 300, 8188, 44, [N/A], [N/A]\nNVIDIA-SMI has failed');
+  assert.equal(g.length, 1);
+  assert.equal(g[0].name, 'RTX 4060 Laptop GPU');
+  assert.equal(g[0].powerW, null);
+  assert.equal(g[0].fanPct, null);
+  assert.deepEqual(S.parseNvidia(''), []);
+});
+test('parseDiskTemps reads per-drive temperatures', () => {
+  const d = S.parseDiskTemps('DEV=nvme1n1 T=29850 S1=30850\nDEV=sda T=32000 S1=');
+  assert.deepEqual(d, [
+    { dev: 'nvme1n1', tempC: 29.85, sensor1C: 30.85 },
+    { dev: 'sda', tempC: 32, sensor1C: null },
+  ]);
+});
+test('parseFans keeps labels aligned with the readings', () => {
+  const f = S.parseFans('hp_wmi_sensors fan1=1323 CPU0 Fan\nhp_wmi_sensors fan2=921 Rear Chassis Fan0\nother fan1=500');
+  assert.deepEqual(f.fans, [1323, 921]);
+  assert.deepEqual(f.labels, ['CPU0 Fan', 'Rear Chassis Fan0']);
+  assert.deepEqual(S.parseFans('thinkpad fan1=4385 ').labels, ['']);
+});
+
+const PROBE_WORKSTATION = [
+  PROBE,
+  '===ROOTDEV===', 'nvme1n1',
+  // nvme0n1 sorts first but is NOT the root disk
+  '===DISKTEMPS===', 'DEV=nvme0n1 T=26850 S1=27850\nDEV=nvme1n1 T=29850 S1=30850\nDEV=sda T=32000 S1=',
+  '===NVGPU===', NVGPU,
+  '===POWER===', 'HASBATTERY=0',
+  '===FANS===', 'hp_wmi_sensors fan1=1323 CPU0 Fan\nhp_wmi_sensors fan2=921 Rear Chassis Fan0',
+  '===TEMPSX===', 'nvme:Sensor1=27850\nhp_wmi_sensors:SystemAmbientTemperature=20000',
+].join('\n');
+
+test('parseProbe: NVIDIA GPUs form the gpu list; scalars mirror the first', () => {
+  const r = S.parseProbe(PROBE_WORKSTATION);
+  assert.equal(r.gpus.length, 2);
+  assert.equal(r.gpuValid, true);
+  assert.equal(r.gpuBusy, 6);
+  assert.equal(r.gpuTempC, 35);
+  assert.equal(r.gpuPowerW, 9.57);
+  assert.equal(r.gpuFanPct, 30);
+  assert.equal(r.socPowerW, null);
+});
+test('parseProbe: disk temperature belongs to the root disk, others are listed', () => {
+  const r = S.parseProbe(PROBE_WORKSTATION);
+  assert.equal(r.diskTempC, 29.85);
+  assert.equal(r.diskTempSensor1C, 30.85);
+  assert.deepEqual(r.otherDiskTemps, [{ dev: 'nvme0n1', tempC: 26.85 }, { dev: 'sda', tempC: 32 }]);
+});
+test('parseProbe: no temperature is guessed when the root disk has no sensor', () => {
+  const r = S.parseProbe([PROBE, '===ROOTDEV===', 'sda', '===DISKTEMPS===', 'DEV=nvme0n1 T=26850 S1=27850'].join('\n'));
+  assert.equal(r.diskTempC, null);
+  assert.equal(r.diskTempSensor1C, null);
+});
+test('parseProbe: fan labels and ambient temperature', () => {
+  const r = S.parseProbe(PROBE_WORKSTATION);
+  assert.deepEqual(r.fanLabels, ['CPU0 Fan', 'Rear Chassis Fan0']);
+  assert.equal(r.ambientTempC, 20);
+  assert.equal(S.parseProbe(PROBE).ambientTempC, null);
+  assert.deepEqual(S.parseProbe(PROBE).gpus.length, S.parseProbe(PROBE).gpuValid ? 1 : 0);
+});

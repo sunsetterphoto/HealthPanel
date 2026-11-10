@@ -21,7 +21,8 @@ function types() {
             { k: "temp",    l: "Temperature" },
             { k: "power",   l: "GPU power (W)" },
             { k: "vram",    l: "VRAM %" },
-            { k: "voltage", l: "GPU voltage (V)" }
+            { k: "voltage", l: "GPU voltage (V)" },
+            { k: "fanpct",  l: "GPU fan %" }
         ] },
         { type: "fan", label: "Fan", icon: "temperature-normal", texts: [
             { k: "max",  l: "Speed (rpm)" },

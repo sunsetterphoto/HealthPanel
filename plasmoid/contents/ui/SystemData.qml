@@ -39,6 +39,14 @@ QtObject {
     property real vramTotalGB: 0
     property real gpuTempC: 0
     property bool hasGpuTemp: false
+    property real gpuFanPct: 0          // NVIDIA reports fan duty in %, not rpm
+    property bool hasGpuFanPct: false
+    // All GPUs (sysfs card first, then NVIDIA via nvidia-smi). Entries:
+    // {name, busy, vramUsedGB, vramTotalGB, vramPct, tempC, powerW, fanPct, voltageV}
+    // with null for values the card does not report. The scalar gpu* properties
+    // above mirror gpus[0].
+    property var  gpus: []
+    property var  gpuHists: []          // one load history per entry of gpus
 
     // power draw (auto-detected; null in parser -> has*=false)
     property real cpuPowerW: 0
@@ -50,6 +58,9 @@ QtObject {
 
     // fans
     property var  fanRpms: []
+    property var  fanLabels: []         // same length as fanRpms; "" when unlabelled
+    property real ambientTempC: 0       // chassis/ambient sensor, when one exists
+    property bool hasAmbientTemp: false
     property int  fanMaxRpm: 0
     property bool hasFan: false
 
@@ -60,6 +71,8 @@ QtObject {
     // extra NVMe temperature (Sensor 1)
     property real diskTempSensor1C: 0
     property bool hasDiskTempSensor1: false
+    // temperatures of the drives other than the one backing "/": [{dev, tempC}]
+    property var  otherDiskTemps: []
 
     property real netDownMBps: 0
     property real netUpMBps: 0
@@ -111,6 +124,12 @@ QtObject {
             gpuBusy = r.gpuBusy; vramPct = r.vramPct;
             vramUsedGB = r.vramUsedGB; vramTotalGB = r.vramTotalGB;
         }
+        var gl = r.gpus || [], hs = [];
+        for (var i = 0; i < gl.length; i++) hs.push(_push(gpuHists[i] || [], gl[i].busy));
+        gpuHists = hs;
+        gpus = gl;
+        hasGpuFanPct = (r.gpuFanPct !== null && r.gpuFanPct !== undefined);
+        gpuFanPct = hasGpuFanPct ? r.gpuFanPct : 0;
         hasGpuTemp = (r.gpuTempC !== null && r.gpuTempC !== undefined);
         gpuTempC = hasGpuTemp ? r.gpuTempC : 0;
         hasCpuPower = (r.cpuPowerW !== null && r.cpuPowerW !== undefined);
@@ -120,6 +139,10 @@ QtObject {
         hasGpuPower = (r.gpuPowerW !== null && r.gpuPowerW !== undefined);
         gpuPowerW = hasGpuPower ? r.gpuPowerW : 0;
         fanRpms = r.fanRpms || [];
+        fanLabels = r.fanLabels || [];
+        hasAmbientTemp = (r.ambientTempC !== null && r.ambientTempC !== undefined);
+        ambientTempC = hasAmbientTemp ? r.ambientTempC : 0;
+        otherDiskTemps = r.otherDiskTemps || [];
         fanMaxRpm = r.fanMaxRpm || 0;
         hasFan = fanRpms.length > 0 && fanMaxRpm > 0;
         hasGpuVoltage = (r.gpuVoltageV !== null && r.gpuVoltageV !== undefined);

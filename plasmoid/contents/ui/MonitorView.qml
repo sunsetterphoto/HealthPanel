@@ -29,7 +29,15 @@ Item {
     signal openWidgetSettings()
     function tr(s) { return I18n.tr(view.lang, s) }
 
-    readonly property var _colOrder: LayoutMeta.parseOrder(Plasmoid.configuration.columnOrder, LayoutMeta.columns())
+    // The battery column hides itself on machines without a battery.
+    readonly property bool _noBattery: view.battery !== null && view.battery !== undefined
+        && view.battery.probed === true && view.battery.present !== true
+    readonly property var _colOrder: {
+        var o = LayoutMeta.parseOrder(Plasmoid.configuration.columnOrder, LayoutMeta.columns())
+        if (view._noBattery)
+            for (var i = 0; i < o.length; i++) if (o[i].id === "battery") o[i].v = false
+        return o
+    }
     function _colVisible(id) {
         for (var i = 0; i < _colOrder.length; i++) if (_colOrder[i].id === id) return _colOrder[i].v;
         return false;
@@ -58,7 +66,11 @@ Item {
     Layout.minimumWidth: Kirigami.Units.gridUnit * Math.max(_ctlMinGu, _contentMinGu)
     Layout.minimumHeight: Kirigami.Units.gridUnit * 17
     Layout.preferredWidth: Kirigami.Units.gridUnit * Math.max(15, _contentMinGu + _cols * 2)
-    Layout.preferredHeight: Kirigami.Units.gridUnit * 20
+    // Grow with the system column (several GPUs, labelled fans, …) so a fresh popup
+    // shows everything; a size the user dragged manually still wins.
+    property real _sysImplicitHeight: 0
+    Layout.preferredHeight: Math.max(Kirigami.Units.gridUnit * 20,
+        _showSystem ? _sysImplicitHeight + Kirigami.Units.gridUnit * 1.5 : 0)
 
     readonly property var _colMap: ({"system": systemCol, "battery": batteryCol, "controls": controlsCol})
 
@@ -97,6 +109,8 @@ Item {
             clip: true
             lang: view.lang
             system: view.system
+            onImplicitHeightChanged: view._sysImplicitHeight = implicitHeight
+            Component.onCompleted: view._sysImplicitHeight = implicitHeight
             layoutJson: Plasmoid.configuration.systemLayout
             showSmart:       Plasmoid.configuration.showSmart
             showTemps:       Plasmoid.configuration.showTemps

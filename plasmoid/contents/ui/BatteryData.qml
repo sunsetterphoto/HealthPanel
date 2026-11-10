@@ -10,6 +10,7 @@ QtObject {
 
     // ---- state ----
     property bool present: false
+    property bool probed: false        // true once the first probe result arrived
     property string error: ""
 
     // identity
@@ -67,6 +68,7 @@ QtObject {
 
     // ---- public API: feed raw text (uevent + lenovo extras) ----
     function applyRawOutput(text) {
+        probed = true
         if (!text) {
             present = false
             error = "no data"

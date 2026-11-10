@@ -169,9 +169,11 @@ function parseGpu(text) {
         var m = line.match(/^(\w+)=(\d+)/);
         if (m) kv[m[1]] = parseInt(m[2], 10);
     });
+    var drv = (text || "").match(/^DRV=(\S+)/m);
     var total = kv.VRAMTOTAL || 0, used = kv.VRAMUSED || 0;
     return {
         valid: kv.BUSY !== undefined,
+        name: drv ? drv[1] : "",
         busy: kv.BUSY || 0,
         vramUsedGB: used / 1073741824,
         vramTotalGB: total / 1073741824,
@@ -202,7 +204,9 @@ function parseProbe(stdout) {
     var mem = memStats(parseMeminfo(s.MEM));
     var n1 = parseNetDev(s.NET1 || ""), n2 = parseNetDev(s.NET2 || "");
     var df = parseDfLine(s.DF || "");
-    var dev = deviceBase(df.source || "");
+    // whole disk backing "/": resolved by the probe (lsblk, handles LUKS/LVM/btrfs),
+    // falling back to stripping the partition suffix from the df source.
+    var dev = (s.ROOTDEV || "").trim().split("\n")[0] || deviceBase(df.source || "");
     var d1 = parseDiskstats(s.DISK1 || "", dev), d2 = parseDiskstats(s.DISK2 || "", dev);
     var temps = parseTemps(s.TEMPS || "");
     var smart = parseSmart(s.SMART || "");
@@ -213,6 +217,30 @@ function parseProbe(stdout) {
     var volts = parseVolts(s.VOLTS || "");
     var tsens = parseTempSensors(s.TEMPSX || "");
     var diskS1 = (tsens["nvme:Sensor1"] !== undefined) ? tsens["nvme:Sensor1"] : null;
+    var diskT = temps.diskTempC;
+    var otherDisks = [];
+    if (s.DISKTEMPS !== undefined) {
+        // per-drive temperatures: the root disk's own sensor wins over "first nvme"
+        diskT = null; diskS1 = null;
+        parseDiskTemps(s.DISKTEMPS).forEach(function (d) {
+            if (d.dev === dev) { diskT = d.tempC; diskS1 = d.sensor1C; }
+            else otherDisks.push({ dev: d.dev, tempC: d.tempC });
+        });
+    }
+    var ambient = null;
+    Object.keys(tsens).forEach(function (k) {
+        if (ambient === null && /ambient/i.test(k)) ambient = tsens[k];
+    });
+
+    // unified GPU list: the sysfs card (amdgpu) first, then NVIDIA cards (nvidia-smi)
+    var gpus = [];
+    if (gpu.valid) gpus.push({
+        name: gpu.name, busy: gpu.busy,
+        vramUsedGB: gpu.vramUsedGB, vramTotalGB: gpu.vramTotalGB, vramPct: gpu.vramPct,
+        tempC: temps.gpuTempC, powerW: pwr.gpuW, fanPct: null, voltageV: volts.gpuVoltageV
+    });
+    parseNvidia(s.NVGPU || "").forEach(function (g) { gpus.push(g); });
+    var g0 = gpus.length > 0 ? gpus[0] : null;
 
     return {
         valid: true,
@@ -229,24 +257,30 @@ function parseProbe(stdout) {
         netDownMBps: rateMBps(n1.rxBytes, n2.rxBytes, dt),
         netUpMBps: rateMBps(n1.txBytes, n2.txBytes, dt),
         cpuTempC: temps.cpuTempC,
-        diskTempC: temps.diskTempC,
-        gpuTempC: temps.gpuTempC,
+        diskTempC: diskT,
+        gpuTempC: g0 ? g0.tempC : temps.gpuTempC,
         smartValid: smart.valid === true,
         smartHealthPct: smart.healthPct,
         smartPowerOnHours: smart.powerOnHours,
         smartTbwTB: smart.tbwTB,
-        gpuValid: gpu.valid,
-        gpuBusy: gpu.busy,
-        vramUsedGB: gpu.vramUsedGB,
-        vramTotalGB: gpu.vramTotalGB,
-        vramPct: gpu.vramPct,
+        // scalar gpu* fields describe the first GPU (panel view, single-GPU machines)
+        gpuValid: g0 !== null,
+        gpuBusy: g0 ? g0.busy : 0,
+        vramUsedGB: g0 ? g0.vramUsedGB : 0,
+        vramTotalGB: g0 ? g0.vramTotalGB : 0,
+        vramPct: g0 ? g0.vramPct : 0,
+        gpus: gpus,
         cpuPowerW: cpuPowerW,
         socPowerW: pwr.socW,
-        gpuPowerW: pwr.gpuW,
+        gpuPowerW: (g0 && g0.powerW !== null) ? g0.powerW : pwr.gpuW,
+        gpuFanPct: g0 ? g0.fanPct : null,
         fanRpms: fans.fans,
+        fanLabels: fans.labels,
         fanMaxRpm: fans.maxRpm,
         gpuVoltageV: volts.gpuVoltageV,
-        diskTempSensor1C: diskS1
+        diskTempSensor1C: diskS1,
+        otherDiskTemps: otherDisks,
+        ambientTempC: ambient
     };
 }
 
@@ -286,23 +320,67 @@ function classifyGpuPower(ps) {
     return { socW: socW, gpuW: gpuW };
 }
 
+// FANS lines: "<chip> fan<N>=<rpm>[ <label>]". The chip reporting the most fans
+// wins (avoids double counting the same fan through two drivers).
 function parseFans(text) {
-    var chips = {};   // name -> [rpm,...] indexed by fan number-1
+    var chips = {};   // name -> [{rpm,label},...] indexed by fan number-1
     (text || "").split("\n").forEach(function (line) {
-        var m = line.match(/^(\S+)\s+fan(\d+)=(\d+)/);
+        var m = line.match(/^(\S+)\s+fan(\d+)=(\d+)(?:\s+(.*))?$/);
         if (!m) return;
-        var name = m[1], idx = parseInt(m[2], 10), rpm = parseInt(m[3], 10);
+        var name = m[1], idx = parseInt(m[2], 10);
         if (!chips[name]) chips[name] = [];
-        chips[name][idx - 1] = rpm;
+        chips[name][idx - 1] = { rpm: parseInt(m[3], 10), label: (m[4] || "").trim() };
     });
-    var best = [], bestLen = 0;
+    var best = [];
     Object.keys(chips).forEach(function (n) {
+        // compacted: only actually-reported readings, no phantom 0
         var present = chips[n].filter(function (x) { return x !== undefined; });
-        if (present.length > bestLen) { bestLen = present.length; best = present; }
+        if (present.length > best.length) best = present;
     });
-    var fans = best;   // already compacted: only actually-reported readings, no phantom 0
-    var max = 0; fans.forEach(function (r) { if (r > max) max = r; });
-    return { fans: fans, maxRpm: max };
+    var max = 0; best.forEach(function (f) { if (f.rpm > max) max = f.rpm; });
+    return {
+        fans: best.map(function (f) { return f.rpm; }),
+        labels: best.map(function (f) { return f.label; }),
+        maxRpm: max
+    };
+}
+
+// NVGPU lines (nvidia-smi csv, noheader, nounits):
+//   index, pci.bus_id, name, utilization.gpu, memory.used, memory.total (MiB),
+//   temperature.gpu, power.draw, fan.speed
+// Unsupported fields arrive as "[N/A]" / "[Not Supported]" and become null.
+function parseNvidia(text) {
+    function num(x) { var v = parseFloat(x); return isNaN(v) ? null : v; }
+    var out = [];
+    (text || "").split("\n").forEach(function (line) {
+        var f = line.split(",").map(function (x) { return x.trim(); });
+        if (f.length < 9 || !/^\d+$/.test(f[0])) return;
+        var used = num(f[4]), total = num(f[5]), busy = num(f[3]);
+        out.push({
+            name: f[2].replace(/^NVIDIA\s+/, "").replace(/^GeForce\s+/, ""),
+            busy: busy === null ? 0 : busy,
+            vramUsedGB: (used || 0) / 1024,
+            vramTotalGB: (total || 0) / 1024,
+            vramPct: total > 0 ? ((used || 0) / total) * 100 : 0,
+            tempC: num(f[6]),
+            powerW: num(f[7]),
+            fanPct: num(f[8]),
+            voltageV: null
+        });
+    });
+    return out;
+}
+
+// DISKTEMPS lines: "DEV=<blockdev> T=<milli°C> S1=<milli°C|empty>".
+function parseDiskTemps(text) {
+    var out = [];
+    (text || "").split("\n").forEach(function (line) {
+        var m = line.match(/^DEV=(\S+)\s+T=(\d+)(?:\s+S1=(\d*))?/);
+        if (!m) return;
+        out.push({ dev: m[1], tempC: parseInt(m[2], 10) / 1000,
+                   sensor1C: m[3] ? parseInt(m[3], 10) / 1000 : null });
+    });
+    return out;
 }
 
 function parseVolts(text) {
@@ -327,5 +405,5 @@ function parseTempSensors(text) {
 if (typeof module !== "undefined" && module.exports) {
     module.exports = { parseMeminfo, memStats, parseCpuStat, cpuPct, parseCoreIds,
         physicalCoreLoads, parseNetDev, rateMBps, sectorsRateMBps, parseDiskstats,
-        deviceBase, parseDfLine, parseProfile, parseTemps, parseSmart, parseGpu, parseRaplPower, parsePowerSection, classifyGpuPower, parseFans, parseVolts, parseTempSensors, parseProbe };
+        deviceBase, parseDfLine, parseProfile, parseTemps, parseSmart, parseGpu, parseRaplPower, parsePowerSection, classifyGpuPower, parseFans, parseNvidia, parseDiskTemps, parseVolts, parseTempSensors, parseProbe };
 }

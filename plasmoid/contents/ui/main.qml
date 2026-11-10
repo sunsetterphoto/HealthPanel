@@ -74,12 +74,23 @@ PlasmoidItem {
         "echo '===MEM==='; cat /proc/meminfo; " +
         "echo '===CORES==='; for c in /sys/devices/system/cpu/cpu[0-9]*; do echo \"$(basename $c) $(cat $c/topology/core_id 2>/dev/null)\"; done; " +
         "echo '===DF==='; df -B1 --output=source,used,size / | tail -1; " +
+        // whole disk backing / (walks up through LUKS/LVM/partitions)
+        "echo '===ROOTDEV==='; lsblk -nso KNAME,TYPE \"$(df --output=source / | tail -1)\" 2>/dev/null | awk '$2==\"disk\"{print $1; exit}'; " +
+        // per-drive temperature (nvme hwmon, or SATA via the drivetemp module)
+        "echo '===DISKTEMPS==='; for b in /sys/block/*; do " +
+        "  for h in \"$b\"/device/hwmon* \"$b\"/device/hwmon/hwmon*; do [ -r \"$h/temp1_input\" ] || continue; " +
+        "    echo \"DEV=$(basename \"$b\") T=$(cat \"$h/temp1_input\" 2>/dev/null) S1=$(cat \"$h/temp2_input\" 2>/dev/null)\"; break; done; done; " +
         "echo '===TEMPS==='; for h in /sys/class/hwmon/hwmon*; do echo \"$(cat $h/name 2>/dev/null) $(cat $h/temp1_input 2>/dev/null)\"; done; " +
         "echo '===SMART==='; cat /var/lib/healthpanel/smart.json 2>/dev/null; " +
         "echo '===GPU==='; for c in /sys/class/drm/card*/device; do " +
         "if [ -e \"$c/gpu_busy_percent\" ]; then echo \"BUSY=$(cat $c/gpu_busy_percent)\"; " +
+        "echo \"DRV=$(basename \"$(readlink -f \"$c/driver\" 2>/dev/null)\" 2>/dev/null)\"; " +
         "echo \"VRAMUSED=$(cat $c/mem_info_vram_used 2>/dev/null)\"; " +
         "echo \"VRAMTOTAL=$(cat $c/mem_info_vram_total 2>/dev/null)\"; break; fi; done; " +
+        // NVIDIA (proprietary driver) exposes nothing in sysfs/hwmon — ask nvidia-smi
+        "echo '===NVGPU==='; command -v nvidia-smi >/dev/null 2>&1 && timeout 3 nvidia-smi " +
+        "--query-gpu=index,pci.bus_id,name,utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw,fan.speed " +
+        "--format=csv,noheader,nounits 2>/dev/null; " +
         "echo '===POWER==='; " +
         "HB=0; for b in /sys/class/power_supply/*; do [ \"$(cat \"$b/type\" 2>/dev/null)\" = Battery ] && HB=1 && break; done; echo \"HASBATTERY=$HB\"; " +
         "for c in /sys/class/drm/card[0-9]*/device; do " +
@@ -92,7 +103,7 @@ PlasmoidItem {
         "echo '===FANS==='; for h in /sys/class/hwmon/hwmon*; do n=$(cat \"$h/name\" 2>/dev/null); " +
         "  for f in \"$h\"/fan[0-9]*_input; do [ -e \"$f\" ] || continue; " +
         "    v=$(cat \"$f\" 2>/dev/null); [ -n \"$v\" ] || continue; " +
-        "    echo \"$n $(basename \"$f\" | sed 's/_input//')=$v\"; done; done; " +
+        "    echo \"$n $(basename \"$f\" | sed 's/_input//')=$v $(cat \"${f%_input}_label\" 2>/dev/null)\"; done; done; " +
         "echo '===VOLTS==='; for h in /sys/class/hwmon/hwmon*; do " +
         "  [ \"$(cat \"$h/name\" 2>/dev/null)\" = amdgpu ] || continue; " +
         "  for v in \"$h\"/in[0-9]*_input; do [ -e \"$v\" ] || continue; " +
@@ -236,14 +247,25 @@ PlasmoidItem {
     }
 
     // ---- presentation ----
+    // Machines without a battery (desktops/workstations) get a system summary.
+    function _systemSummary() {
+        var s = systemData
+        if (!s.valid) return ""
+        var parts = ["CPU " + s.fmtPct(s.cpuPct) + (s.hasCpuTemp ? " " + s.fmtTemp(s.cpuTempC) : "")]
+        for (var i = 0; i < s.gpus.length; i++)
+            parts.push((s.gpus.length > 1 ? "GPU" + (i + 1) : "GPU") + " " + s.fmtPct(s.gpus[i].busy)
+                + (s.gpus[i].tempC !== null ? " " + s.fmtTemp(s.gpus[i].tempC) : ""))
+        parts.push("RAM " + s.fmtPct(s.ramPct))
+        return parts.join(" · ")
+    }
     toolTipMainText: battery.present
         ? "Battery — " + battery.capacityPct + "%"
-        : "Battery — n/a"
+        : "HealthPanel"
     toolTipSubText: battery.present
         ? "Health " + battery.fmtPct(battery.healthPct)
             + " · Cycles " + battery.cycleCount
             + (battery.status ? " · " + battery.status : "")
-        : (battery.error || "kein Akku gefunden")
+        : root._systemSummary()
 
     compactRepresentation: Compact {
         battery: root.battery
@@ -271,7 +293,7 @@ PlasmoidItem {
     }
 
     Plasmoid.icon: {
-        if (!battery.present) return "battery-missing"
+        if (!battery.present) return battery.probed ? "utilities-system-monitor" : "battery-missing"
         var c = battery.capacityPct
         var charging = battery.status === "Charging"
         if (c >= 95) return charging ? "battery-full-charging" : "battery-full"

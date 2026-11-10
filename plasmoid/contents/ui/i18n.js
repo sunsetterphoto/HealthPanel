@@ -14,6 +14,8 @@ var DE = {
     "Down": "Down",
     "Up": "Up",
     "Fans": "Lüfter",
+    "Ambient": "Umgebung",
+    "Drives": "Laufwerke",
     // --- battery card ---
     "Charge": "Ladung",
     "left": "verbleibend",
@@ -115,6 +117,7 @@ var DE = {
     "GPU": "GPU",
     "GPU power (W)": "GPU-Leistung (W)",
     "GPU voltage (V)": "GPU-Spannung (V)",
+    "GPU fan %": "GPU-Lüfter %",
     "VRAM %": "VRAM %",
     "Fan": "Lüfter",
     "Speed (rpm)": "Drehzahl (rpm)",

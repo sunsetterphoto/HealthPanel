@@ -231,69 +231,111 @@ ColumnLayout {
         }
     }
 
-    // ---- GPU + VRAM ----
+    // ---- GPU + VRAM (one block per GPU) ----
     Component {
         id: gpuSection
         ColumnLayout {
             Layout.fillWidth: true
             visible: col._ok && col.system.hasGpu
-            spacing: 2
-            RowLayout {
-                Layout.fillWidth: true
-                RowLayout {
-                    spacing: Kirigami.Units.smallSpacing
-                    MLabel { text: "GPU" }
-                    PC3.Label {
-                        visible: col._ok && col.showTemps && col.system.hasGpuTemp
-                        text: col._ok ? col.system.fmtTemp(col.system.gpuTempC) : ""
-                        opacity: 0.5; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+            spacing: Kirigami.Units.smallSpacing
+            Repeater {
+                // integer model: delegates survive the per-refresh data swap
+                model: col._ok ? col.system.gpus.length : 0
+                delegate: ColumnLayout {
+                    id: gpuBlock
+                    required property int index
+                    // null for a tick when the GPU list shrinks (e.g. card handed to a VM)
+                    readonly property var g: (col._ok && gpuBlock.index < col.system.gpus.length)
+                        ? col.system.gpus[gpuBlock.index] : null
+                    readonly property bool multi: col._ok && col.system.gpus.length > 1
+                    readonly property var hist: (col._ok && gpuBlock.index < col.system.gpuHists.length)
+                        ? col.system.gpuHists[gpuBlock.index] : []
+                    Layout.fillWidth: true
+                    Layout.topMargin: gpuBlock.index > 0 ? Kirigami.Units.smallSpacing : 0
+                    spacing: 2
+                    RowLayout {
+                        Layout.fillWidth: true
+                        RowLayout {
+                            spacing: Kirigami.Units.smallSpacing
+                            MLabel { text: gpuBlock.multi ? "GPU " + (gpuBlock.index + 1) : "GPU" }
+                            PC3.Label {
+                                visible: gpuBlock.multi && text.length > 0
+                                text: gpuBlock.g ? gpuBlock.g.name : ""
+                                opacity: 0.5; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                                elide: Text.ElideRight
+                                Layout.maximumWidth: Kirigami.Units.gridUnit * 7
+                            }
+                            PC3.Label {
+                                visible: col.showTemps && gpuBlock.g !== null && gpuBlock.g.tempC !== null
+                                text: visible ? col.system.fmtTemp(gpuBlock.g.tempC) : ""
+                                opacity: 0.5; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                            }
+                        }
+                        Item { Layout.fillWidth: true }
+                        Ring {
+                            visible: col.gpuStyle === "ring"
+                            fraction: gpuBlock.g ? gpuBlock.g.busy / 100 : 0
+                            fill: "#e67e22"
+                            centerText: gpuBlock.g ? Math.round(gpuBlock.g.busy) + "" : "—"
+                        }
+                        PC3.Label {
+                            visible: col.gpuStyle !== "ring"
+                            text: gpuBlock.g ? col.system.fmtPct(gpuBlock.g.busy) : "—"
+                            font.bold: true; font.pixelSize: Kirigami.Theme.defaultFont.pixelSize
+                        }
                     }
-                }
-                Item { Layout.fillWidth: true }
-                Ring {
-                    visible: col.gpuStyle === "ring"
-                    fraction: col._ok ? col.system.gpuBusy / 100 : 0
-                    fill: "#e67e22"
-                    centerText: col._ok ? Math.round(col.system.gpuBusy) + "" : "—"
-                }
-                PC3.Label {
-                    visible: col.gpuStyle !== "ring"
-                    text: col._ok ? col.system.fmtPct(col.system.gpuBusy) : "—"
-                    font.bold: true; font.pixelSize: Kirigami.Theme.defaultFont.pixelSize
-                }
-            }
-            Bar { visible: col.gpuStyle === "bar"; fraction: col._ok ? col.system.gpuBusy / 100 : 0; fill: "#e67e22" }
-            Spark { visible: col.gpuStyle === "sparkline"; points: col._ok ? col.system.gpuHist : []; maxValue: 100; fill: "#e67e22" }
+                    Bar { visible: col.gpuStyle === "bar"; fraction: gpuBlock.g ? gpuBlock.g.busy / 100 : 0; fill: "#e67e22" }
+                    Spark { visible: col.gpuStyle === "sparkline"; points: gpuBlock.hist; maxValue: 100; fill: "#e67e22" }
 
-            RowLayout {
-                Layout.fillWidth: true
-                MLabel { text: "VRAM" }
-                Item { Layout.fillWidth: true }
-                PC3.Label { text: col._ok ? col.system.fmtPct(col.system.vramPct) : "—"; font.bold: true }
-            }
-            PC3.Label {
-                text: col._ok ? col.system.fmtGB(col.system.vramUsedGB) + " / " + col.system.fmtGB(col.system.vramTotalGB) : ""
-                opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
-            }
-            Bar { visible: col.vramStyle === "bar"; fraction: col._ok ? col.system.vramPct / 100 : 0; fill: "#d35400" }
-            RowLayout {
-                Layout.fillWidth: true
-                visible: col._ok && col.showPower && col.system.hasGpuPower
-                MLabel { text: col.tr("Power draw") }
-                Item { Layout.fillWidth: true }
-                PC3.Label {
-                    text: col._ok ? col.system.fmtW(col.system.gpuPowerW) : ""
-                    opacity: 0.7; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
-                }
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                visible: col._ok && col.showVoltage && col.system.hasGpuVoltage
-                MLabel { text: col.tr("Voltage") }
-                Item { Layout.fillWidth: true }
-                PC3.Label {
-                    text: col._ok ? col.system.fmtVolt(col.system.gpuVoltageV) : ""
-                    opacity: 0.7; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                    RowLayout {
+                        Layout.fillWidth: true
+                        MLabel { text: "VRAM" }
+                        // with several GPUs the GB figure moves up here to save a row each
+                        PC3.Label {
+                            visible: gpuBlock.multi
+                            text: gpuBlock.g ? col.system.fmtGB(gpuBlock.g.vramUsedGB) + " / " + col.system.fmtGB(gpuBlock.g.vramTotalGB) : ""
+                            opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                        }
+                        Item { Layout.fillWidth: true }
+                        PC3.Label { text: gpuBlock.g ? col.system.fmtPct(gpuBlock.g.vramPct) : "—"; font.bold: true }
+                    }
+                    PC3.Label {
+                        visible: !gpuBlock.multi
+                        text: gpuBlock.g ? col.system.fmtGB(gpuBlock.g.vramUsedGB) + " / " + col.system.fmtGB(gpuBlock.g.vramTotalGB) : ""
+                        opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                    }
+                    Bar { visible: col.vramStyle === "bar"; fraction: gpuBlock.g ? gpuBlock.g.vramPct / 100 : 0; fill: "#d35400" }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        visible: gpuBlock.g !== null
+                            && ((col.showPower && gpuBlock.g.powerW !== null) || gpuBlock.g.fanPct !== null)
+                        MLabel {
+                            text: (col.showPower && gpuBlock.g !== null && gpuBlock.g.powerW !== null)
+                                ? col.tr("Power draw") : col.tr("Fan")
+                        }
+                        Item { Layout.fillWidth: true }
+                        PC3.Label {
+                            text: {
+                                var g = gpuBlock.g
+                                if (g === null) return ""
+                                var parts = []
+                                if (col.showPower && g.powerW !== null) parts.push(col.system.fmtW(g.powerW))
+                                if (g.fanPct !== null) parts.push((parts.length ? col.tr("Fan") + " " : "") + Math.round(g.fanPct) + "%")
+                                return parts.join("   ")
+                            }
+                            opacity: 0.7; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                        }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        visible: col.showVoltage && gpuBlock.g !== null && gpuBlock.g.voltageV !== null
+                        MLabel { text: col.tr("Voltage") }
+                        Item { Layout.fillWidth: true }
+                        PC3.Label {
+                            text: parent.visible ? col.system.fmtVolt(gpuBlock.g.voltageV) : ""
+                            opacity: 0.7; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                        }
+                    }
                 }
             }
         }
@@ -383,6 +425,28 @@ ColumnLayout {
             Bar { visible: col.diskStyle === "bar"; fraction: col._ok ? col.system.diskPct / 100 : 0; fill: "#f1c40f" }
             // sparkline shows disk I/O activity (occupancy barely moves)
             Spark { visible: col.diskStyle === "sparkline"; points: col._ok ? col.system.diskIoHist : []; maxValue: 0; fill: "#f1c40f" }
+            // the other drives' temperatures (2nd NVMe, SATA via drivetemp)
+            RowLayout {
+                Layout.fillWidth: true
+                visible: col._ok && col.showTemps && col.system.otherDiskTemps.length > 0
+                MLabel { text: col.tr("Drives"); Layout.alignment: Qt.AlignTop }
+                PC3.Label {
+                    Layout.fillWidth: true
+                    horizontalAlignment: Text.AlignRight
+                    wrapMode: Text.WordWrap
+                    text: {
+                        if (!col._ok) return ""
+                        var parts = []
+                        for (var i = 0; i < col.system.otherDiskTemps.length; i++) {
+                            var d = col.system.otherDiskTemps[i]
+                            // non-breaking space keeps "sda 33°C" together when wrapping
+                            parts.push(d.dev + "\u00a0" + col.system.fmtTemp(d.tempC))
+                        }
+                        return parts.join("  ")
+                    }
+                    opacity: 0.7; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                }
+            }
             RowLayout {
                 Layout.fillWidth: true
                 visible: col._ok && col.showSmart && col.system.smartValid
@@ -401,18 +465,28 @@ ColumnLayout {
         }
     }
 
-    // ---- Fans ----
+    // ---- Fans (+ ambient temperature) ----
     Component {
         id: fansSection
         ColumnLayout {
+            id: fansBox
             Layout.fillWidth: true
-            visible: col._ok && col.system.hasFan
+            visible: col._ok && (col.system.hasFan || col.system.hasAmbientTemp)
             spacing: 2
+            // labelled fans (e.g. "CPU0 Fan", "Rear Chassis Fan0") get one row each
+            readonly property bool labelled: {
+                if (!col._ok) return false
+                var l = col.system.fanLabels
+                for (var i = 0; i < l.length; i++) if (l[i] && l[i].length > 0) return true
+                return false
+            }
             RowLayout {
                 Layout.fillWidth: true
+                visible: col._ok && col.system.hasFan
                 MLabel { text: col.tr("Fans") }
                 Item { Layout.fillWidth: true }
                 PC3.Label {
+                    visible: !fansBox.labelled
                     text: {
                         if (!col._ok) return ""
                         var parts = []
@@ -421,6 +495,35 @@ ColumnLayout {
                         return parts.join("   ")
                     }
                     font.bold: true; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                }
+            }
+            Repeater {
+                model: (col._ok && col.system.hasFan && fansBox.labelled) ? col.system.fanRpms.length : 0
+                delegate: RowLayout {
+                    id: fanRow
+                    required property int index
+                    readonly property bool _in: col._ok && fanRow.index < col.system.fanRpms.length
+                    Layout.fillWidth: true
+                    PC3.Label {
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                        text: fanRow._in ? (col.system.fanLabels[fanRow.index] || (col.tr("Fan") + " " + (fanRow.index + 1))) : ""
+                        opacity: 0.7; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                    }
+                    PC3.Label {
+                        text: fanRow._in ? col.system.fmtRpm(col.system.fanRpms[fanRow.index]) : ""
+                        font.bold: true; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                    }
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                visible: col._ok && col.showTemps && col.system.hasAmbientTemp
+                MLabel { text: col.tr("Ambient") }
+                Item { Layout.fillWidth: true }
+                PC3.Label {
+                    text: col._ok ? col.system.fmtTemp(col.system.ambientTempC) : ""
+                    opacity: 0.7; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
                 }
             }
         }
@@ -469,7 +572,7 @@ ColumnLayout {
     function _hwPresent(id) {
         if (!col._ok) return false
         if (id === "gpu") return col.system.hasGpu
-        if (id === "fans") return col.system.hasFan
+        if (id === "fans") return col.system.hasFan || (col.showTemps && col.system.hasAmbientTemp)
         if (id === "powerMode") return col.system.hasPowerProfile
         return true
     }

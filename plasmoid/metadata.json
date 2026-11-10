@@ -8,12 +8,12 @@
             }
         ],
         "Category": "System Information",
-        "Description": "System health monitor: CPU, RAM, swap, disk usage/IO, network, power profile, temperatures and SSD SMART — beside detailed battery health (cycles, wear, charge thresholds)",
+        "Description": "System health monitor: CPU, GPU (AMD/NVIDIA), RAM, swap, disk usage/IO, network, fans, power profile, temperatures and SSD SMART — beside detailed battery health (cycles, wear, charge thresholds)",
         "Icon": "battery",
         "Id": "io.github.sunsetterphoto.healthpanel",
         "License": "GPL-3.0",
         "Name": "HealthPanel",
-        "Version": "1.2.1",
+        "Version": "1.3.0",
         "Website": "https://github.com/sunsetterphoto/HealthPanel"
     },
     "X-Plasma-API-Minimum-Version": "6.0"

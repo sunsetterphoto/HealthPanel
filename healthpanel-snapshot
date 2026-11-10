@@ -5,12 +5,14 @@ set -euo pipefail
 
 BAT_DIR="${BAT_DIR:-$(for d in /sys/class/power_supply/*; do
     [ "$(cat "$d/type" 2>/dev/null)" = Battery ] && echo "$d" && break
-done)}"
+done || true)}"
 BAT_DIR="${BAT_DIR:-/sys/class/power_supply/BAT0}"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/healthpanel"
 HISTORY_FILE="$STATE_DIR/history.tsv"
 
-[[ -d "$BAT_DIR" ]] || { echo "no battery at $BAT_DIR" >&2; exit 1; }
+# No battery (desktop/workstation): nothing to log — succeed quietly so the
+# daily timer does not leave a failed unit behind.
+[[ -d "$BAT_DIR" ]] || { echo "no battery found — nothing to snapshot"; exit 0; }
 
 mkdir -p "$STATE_DIR"
 
