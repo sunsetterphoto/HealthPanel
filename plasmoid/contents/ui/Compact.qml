@@ -15,6 +15,7 @@ MouseArea {
     property var battery
     property var system
     property string lang: "en"
+    property bool updateAvailable: false
     signal toggleExpanded()
 
     readonly property bool _ready: compact.battery !== null && compact.battery !== undefined
@@ -49,8 +50,13 @@ MouseArea {
 
     implicitWidth: row.implicitWidth + Kirigami.Units.smallSpacing * 2
     implicitHeight: Math.max(row.implicitHeight, Kirigami.Units.iconSizes.small)
-    Layout.minimumWidth: implicitWidth
-    Layout.preferredWidth: implicitWidth
+        + (compact._vertical ? Kirigami.Units.smallSpacing * 2 : 0)
+    // A horizontal panel gives us the width we ask for; a vertical panel the
+    // height (its width is fixed — entries stack icon-over-text and shrink to fit).
+    Layout.minimumWidth: compact._vertical ? -1 : implicitWidth
+    Layout.preferredWidth: compact._vertical ? -1 : implicitWidth
+    Layout.minimumHeight: compact._vertical ? implicitHeight : -1
+    Layout.preferredHeight: compact._vertical ? implicitHeight : -1
 
     hoverEnabled: true
     onClicked: compact.toggleExpanded()
@@ -139,12 +145,19 @@ MouseArea {
 
         Repeater {
             model: compact._layout
-            delegate: RowLayout {
+            delegate: GridLayout {
                 id: itemRow
                 required property var modelData
                 required property int index
                 readonly property string _txt: compact.textFor(modelData)
-                spacing: Kirigami.Units.smallSpacing
+                // side by side in a horizontal panel, icon over text in a vertical one
+                flow: compact._vertical ? GridLayout.TopToBottom : GridLayout.LeftToRight
+                rows: compact._vertical ? -1 : 1
+                columns: compact._vertical ? 1 : -1
+                columnSpacing: Kirigami.Units.smallSpacing
+                rowSpacing: 1
+                Layout.alignment: Qt.AlignCenter
+                Layout.maximumWidth: compact._vertical ? compact.width : -1
                 // divider standing in for a missing icon (vertical on a horizontal
                 // panel, horizontal on a vertical panel)
                 Rectangle {
@@ -152,7 +165,7 @@ MouseArea {
                     color: Kirigami.Theme.textColor
                     opacity: 0.3
                     Layout.alignment: Qt.AlignCenter
-                    Layout.rightMargin: Kirigami.Units.smallSpacing
+                    Layout.rightMargin: compact._vertical ? 0 : Kirigami.Units.smallSpacing
                     Layout.preferredWidth:  compact._vertical ? Kirigami.Units.iconSizes.small : 1
                     Layout.preferredHeight: compact._vertical ? 1 : Kirigami.Units.iconSizes.small
                 }
@@ -166,10 +179,25 @@ MouseArea {
                 PC3.Label {
                     text: itemRow._txt
                     visible: text.length > 0
-                    font.pixelSize: Kirigami.Theme.defaultFont.pixelSize
+                    // vertical panels are narrow: smaller type, shrink further to fit
+                    font.pixelSize: compact._vertical ? Kirigami.Theme.smallFont.pixelSize
+                                                      : Kirigami.Theme.defaultFont.pixelSize
+                    fontSizeMode: compact._vertical ? Text.HorizontalFit : Text.FixedSize
+                    minimumPixelSize: 7
+                    horizontalAlignment: Text.AlignHCenter
                     Layout.alignment: Qt.AlignCenter
+                    Layout.maximumWidth: compact._vertical ? compact.width : -1
                 }
             }
         }
+    }
+
+    // small marker while an update is waiting (details + button are in the popup)
+    Rectangle {
+        visible: compact.updateAvailable
+        width: Math.round(Kirigami.Units.iconSizes.small * 0.4); height: width; radius: width / 2
+        color: Kirigami.Theme.highlightColor
+        border.width: 1; border.color: Kirigami.Theme.backgroundColor
+        anchors { top: parent.top; right: parent.right; topMargin: 1; rightMargin: 1 }
     }
 }

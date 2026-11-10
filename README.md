@@ -11,8 +11,11 @@ column — in a single tidy popup, with a configurable panel/compact view.
 ![HealthPanel](screenshots/HealthPanelWidget.png)
 
 Every part of the popup — the three columns, the system sections, and the battery
-detail blocks — can be **reordered and shown/hidden** to taste; the popup resizes
-to fit what's shown and can be **pinned** to stay open.
+detail blocks — can be **reordered and shown/hidden** to taste. The layout is
+**responsive**: drag the popup (or the desktop widget) to any size — columns sit
+side by side while there is room, wrap below each other when there isn't, and
+anything that still doesn't fit scrolls. It can be **pinned** to stay open, and it
+**offers updates itself** when a new version is published.
 
 ## Features
 
@@ -115,6 +118,35 @@ Arrange the popup exactly how you like it:
   yours to arrange.
 - **Reset to defaults** restores the original order and visibility in one click.
 
+### Responsive layout
+
+The popup has no fixed shape. Each column needs about 13 grid units; as many
+columns as fit are shown side by side, the rest wrap underneath, and the view
+scrolls vertically when it is shorter than its content — from a narrow one-column
+strip to the full three-column popup. Inside a column, long values elide, the
+per-core CPU bars get thinner, and the drive list wraps. In a **vertical panel**
+the compact entries stack icon-over-text and shrink their text to the panel width;
+as a **desktop widget** it falls back to the compact view when dragged very small.
+Bars and rings take their track colour from the theme, so light themes work too.
+
+### Updates
+
+HealthPanel notices when the repository it was installed from has new commits and
+offers them right in the popup: a banner with the new version and an **Update**
+button (plus a small dot on the panel entry and a line in the tooltip). One click
+runs `git pull --ff-only` and reinstalls the user-level parts; afterwards the
+banner offers **Restart Plasma**, because Plasma only loads new widget code with a
+fresh shell.
+
+- The check is `git fetch` against the clone's upstream, at most every 6 hours.
+  Nothing is installed without the click. Turn it off under *General → Updates*.
+- Works when installed from a git clone (the normal `./install.sh` way). Local
+  modifications or diverging commits are never overwritten — the banner says so.
+- Root-side files (the SMART timer) are not touched by the click; if they changed,
+  the banner asks you to run `./install.sh` once in a terminal.
+- From a terminal: `healthpanel-update` (status), `healthpanel-update apply`
+  (also as `healthpanel update [apply]`).
+
 ### Panel / compact view
 
 In the panel the widget shows a configurable row of entries — battery, CPU, GPU,
@@ -175,8 +207,8 @@ re-labelled with `restorecon` (a home-symlinked system unit would be rejected).
 Right-click the widget → *Configure HealthPanel*. Each tab owns the order and
 visibility of its own part of the popup, alongside its detail options:
 
-- **General** — refresh interval, UI language (System / Deutsch / English), and the
-  **order/visibility of the three columns**
+- **General** — refresh interval, UI language (System / Deutsch / English), the
+  update check, and the **order/visibility of the three columns**
 - **System** — the **order/visibility of the system sections**, plus detail toggles
   (logical cores, SMART, temperatures, power draw, GPU voltage, NVMe Sensor 1) and
   the display style per metric (bar · ring · sparkline; network: text · sparkline).
@@ -203,6 +235,7 @@ healthpanel battery    # battery section only
 healthpanel temps      # all hwmon temperature sensors
 healthpanel -w         # live watch (combinable, e.g. `healthpanel -w system`)
 healthpanel --history  # logged battery history
+healthpanel update     # is there a new version? (`update apply` installs it)
 ```
 
 ## How it reads your hardware
@@ -224,8 +257,12 @@ sources:
   to the drive backing `/` (resolved through LUKS/LVM/btrfs with `lsblk`) — with
   several drives it is never just "the first NVMe". An unrelated chip's sensor
   is never shown as the CPU or disk temperature.
+- **Network** throughput counts the physical interfaces only, so traffic through
+  a VPN, bridge or container interface isn't counted twice.
 - The **battery** is the first `/sys/class/power_supply` device of type
-  *Battery*; the **disk** for SMART is the whole disk backing `/`.
+  *Battery* that belongs to the system (a wireless mouse or keyboard battery is
+  ignored); both energy-based (µWh) and charge-based (µAh) fuel gauges are
+  understood; the **disk** for SMART is the whole disk backing `/`.
 
 If an expected source isn't present, the field is simply **hidden — never
 guessed**.
@@ -249,9 +286,12 @@ well expose them:**
 
 ## Architecture
 
-- All parsing/maths lives in pure JS — `sysparse.js` for the sensors and
-  `layoutmeta.js` for the configurable layout — shared by QML and Node and
-  unit-tested with `node --test tests/*.js`.
+- All parsing/maths lives in pure JS — `sysparse.js` for the sensors,
+  `batparse.js` for the battery and `layoutmeta.js` for the configurable layout —
+  shared by QML and Node and unit-tested with `node --test tests/*.js`.
+- `healthpanel-update` is the updater behind the banner: a small, project-agnostic
+  Bash script (status / check / apply, `KEY=value` output) with the project
+  specifics in one block at its top.
 - The expanded view renders data-driven from three small JSON layout settings, so
   reordering or hiding any section/block/column is just an edit to that list.
 - `SystemData.qml`, `BatteryData.qml` and `ControlData.qml` feed probe output

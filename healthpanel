@@ -4,13 +4,20 @@
 set -euo pipefail
 export LC_NUMERIC=C   # so printf/awk use '.' as decimal separator regardless of locale
 
-# First battery device (BAT0/BAT1/vendor name); overridable with $BAT_DIR.
+# First system battery (BAT0/BAT1/vendor name); overridable with $BAT_DIR.
+# Peripheral batteries (mouse, keyboard, headset: scope "Device") are skipped.
 # (`|| true`: on a machine without any battery the loop ends non-zero, which
 # would otherwise abort the whole script under `set -e`.)
-BAT_DIR="${BAT_DIR:-$(for d in /sys/class/power_supply/*; do
-    [ "$(cat "$d/type" 2>/dev/null)" = Battery ] && echo "$d" && break
-done || true)}"
-BAT_DIR="${BAT_DIR:-/sys/class/power_supply/BAT0}"
+find_battery() {
+    local d
+    for d in /sys/class/power_supply/*; do
+        [ "$(cat "$d/type" 2>/dev/null)" = Battery ] || continue
+        [ "$(cat "$d/scope" 2>/dev/null)" = Device ] && continue
+        echo "$d"; return 0
+    done
+    return 0
+}
+BAT_DIR="${BAT_DIR:-$(find_battery)}"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/healthpanel"
 HISTORY_FILE="$STATE_DIR/history.tsv"
 SMART_CACHE="/var/lib/healthpanel/smart.json"
@@ -103,10 +110,8 @@ rapl_power() {
 # amdgpu PPT (whole-package on an APU) in W, classified by boot_vga + battery.
 # Echoes "soc <W>" or "gpu <W>" lines.
 chip_power() {
-    local hb=0 b
-    for b in /sys/class/power_supply/*; do
-        [[ "$(cat "$b/type" 2>/dev/null)" == Battery ]] && hb=1 && break
-    done
+    local hb=0
+    [[ -n "$(find_battery)" ]] && hb=1
     local c hw drv bv ppt
     for c in /sys/class/drm/card[0-9]*/device; do
         [[ -d "$c/hwmon" ]] || continue
@@ -179,7 +184,13 @@ gpu_list() {
             "$(cat "$c/mem_info_vram_used" 2>/dev/null || true)" \
             "$(cat "$c/mem_info_vram_total" 2>/dev/null || true)" "$t" "$pw" ""
     done
-    if command -v nvidia-smi >/dev/null 2>&1; then
+    # never wake a runtime-suspended NVIDIA card (hybrid laptops) just to read it
+    local nv=0 d
+    for d in /sys/bus/pci/drivers/nvidia/0000:*; do
+        [[ -e "$d" ]] || continue
+        [[ "$(cat "$d/power/runtime_status" 2>/dev/null)" == suspended ]] || nv=1
+    done
+    if [[ $nv -eq 1 ]] && command -v nvidia-smi >/dev/null 2>&1; then
         timeout 3 nvidia-smi --query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw,fan.speed \
             --format=csv,noheader,nounits 2>/dev/null | awk -F', *' 'NF>=7 {
                 for (i=2;i<=7;i++) if ($i !~ /^[0-9.]+$/) $i=""
@@ -227,8 +238,15 @@ gather_system() {
         if [[ "$d" == "$ROOT_DISK" ]]; then DISK_TEMP="$t"; else OTHER_DISK_TEMPS+="${d} ${t}°C  "; fi
     done < <(disk_temps)
 
-    # network totals (sum of all non-lo interfaces)
-    read -r NET_RX NET_TX < <(awk -F'[: ]+' '!/lo:|Inter|face/{rx+=$3; tx+=$11} END{print rx, tx}' /proc/net/dev)
+    # network totals: physical NICs only (bridges, VPN and container interfaces
+    # would count the same traffic twice)
+    NET_RX=0; NET_TX=0
+    local nif
+    for nif in /sys/class/net/*; do
+        [[ -e "$nif/device" ]] || continue
+        NET_RX=$((NET_RX + $(cat "$nif/statistics/rx_bytes" 2>/dev/null || echo 0)))
+        NET_TX=$((NET_TX + $(cat "$nif/statistics/tx_bytes" 2>/dev/null || echo 0)))
+    done
 
     # power profile
     POWER_PROFILE=$(busctl --user get-property net.hadess.PowerProfiles /net/hadess/PowerProfiles \
@@ -296,7 +314,11 @@ render_system() {
     if [[ -r "$SMART_CACHE" ]] && command -v jq >/dev/null 2>&1; then
         local sv; sv=$(jq -r '.valid' "$SMART_CACHE" 2>/dev/null || echo false)
         if [[ "$sv" == "true" ]]; then
-            kv "SSD health" "$(jq -r '"\(.healthPct)%  ·  \(.powerOnHours) h  ·  \(.tbwTB) TBW"' "$SMART_CACHE")"
+            # fields a drive does not report are null and simply left out
+            local sm; sm=$(jq -r '[ (if .healthPct != null then "\(.healthPct)%" else empty end),
+                (if .powerOnHours != null then "\(.powerOnHours) h" else empty end),
+                (if .tbwTB != null then "\(.tbwTB) TBW" else empty end) ] | join("  ·  ")' "$SMART_CACHE" 2>/dev/null || true)
+            [[ -n "$sm" ]] && kv "SSD health" "$sm"
         fi
     fi
     # GPUs
@@ -364,14 +386,33 @@ status_fmt() {
         *)              printf '%s' "${1:-unknown}" ;;
     esac
 }
+# µWh from <energy attr>, or from <charge attr> (µAh) × reference voltage.
+bat_energy() {
+    local e c v
+    e=$(read_sys "$1"); [[ -n "$e" ]] && { printf '%s' "$e"; return 0; }
+    c=$(read_sys "$2"); [[ -n "$c" ]] || return 0
+    v=$(read_sys voltage_min_design); [[ -n "$v" && "$v" != 0 ]] || v=$(read_sys voltage_now)
+    [[ -n "$v" ]] || return 0
+    awk -v c="$c" -v v="$v" 'BEGIN{ printf "%.0f", c*v/1e6 }'
+}
 gather_battery() {
     BAT_PRESENT=$(read_sys present)
     MANUF=$(read_sys manufacturer); MODEL=$(read_sys model_name)
     SERIAL=$(read_sys serial_number | sed 's/^ *//;s/ *$//')
     TECH=$(read_sys technology); STATUS=$(read_sys status)
     CYCLES=$(read_sys cycle_count); CAP_PCT=$(read_sys capacity)
-    E_FULL_DESIGN=$(read_sys energy_full_design); E_FULL=$(read_sys energy_full); E_NOW=$(read_sys energy_now)
-    V_MIN_DESIGN=$(read_sys voltage_min_design); V_NOW=$(read_sys voltage_now); P_NOW=$(read_sys power_now)
+    V_MIN_DESIGN=$(read_sys voltage_min_design); V_NOW=$(read_sys voltage_now)
+    # energy-based gauges report µWh/µW; charge-based ones µAh/µA, which are
+    # converted with the design (or current) voltage
+    E_FULL_DESIGN=$(bat_energy energy_full_design charge_full_design)
+    E_FULL=$(bat_energy energy_full charge_full)
+    E_NOW=$(bat_energy energy_now charge_now)
+    P_NOW=$(read_sys power_now)
+    if [[ -z "$P_NOW" ]]; then
+        local cur; cur=$(read_sys current_now)
+        [[ -n "$cur" && -n "$V_NOW" ]] && P_NOW=$(awk -v c="$cur" -v v="$V_NOW" 'BEGIN{ if (c<0) c=-c; printf "%.0f", c*v/1e6 }')
+    fi
+    P_NOW=${P_NOW#-}    # some drivers report a negative value while discharging
     CHARGE_START=$(read_sys charge_control_start_threshold)
     CHARGE_END=$(read_sys charge_control_end_threshold)
     CHARGE_BEH=$(read_sys charge_behaviour | sed 's/.*\[\([^]]*\)\].*/\1/')
@@ -379,6 +420,8 @@ gather_battery() {
     TIME_REMAIN=$(upower_time_remaining)
 }
 render_battery() {
+    # some drivers have no `present` attribute: an existing battery dir then counts
+    [[ -z "${BAT_PRESENT:-}" && -n "$BAT_DIR" && -d "$BAT_DIR" ]] && BAT_PRESENT=1
     [[ "${BAT_PRESENT:-0}" == "1" ]] || { sec "BATTERY"; hr; kv "" "kein Akku gefunden (Desktop/Workstation)"; return 0; }
     local title="Battery"; [[ -n "$MANUF$MODEL" ]] && title="$MANUF $MODEL"
     sec "BATTERY — $title ($(basename "$BAT_DIR"))"
@@ -471,6 +514,7 @@ Usage:
   healthpanel temps        all hwmon temperature sensors
   healthpanel --raw        dump all battery sysfs entries (debug)
   healthpanel --history    logged battery history (from the systemd timer)
+  healthpanel update       check for a new version ('update apply' installs it)
   healthpanel -w|--watch   live view; combine with any section, e.g.
                            'healthpanel -w system', 'healthpanel temps -w', '-w --raw'
   healthpanel -h|--help    this help
@@ -486,6 +530,12 @@ for a in "$@"; do
         *)                SECTION="$a" ;;
     esac
 done
+
+# `healthpanel update [check|apply|status]` hands over to the updater.
+if [[ "${1:-}" == update ]]; then
+    shift
+    exec "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/healthpanel-update" "$@"
+fi
 
 case "$SECTION" in
     ""|all|show)         RENDER=cmd_all ;;

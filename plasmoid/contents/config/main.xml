@@ -16,6 +16,11 @@
       <default>system</default>
     </entry>
 
+    <!-- Built-in updater: look for new commits upstream and offer to install them -->
+    <entry name="checkUpdates" type="Bool">
+      <default>true</default>
+    </entry>
+
     <!-- Detail toggles: rows that appear only when the hardware has the sensor -->
     <entry name="showSmart" type="Bool">
       <default>true</default>

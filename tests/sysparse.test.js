@@ -390,3 +390,56 @@ test('parseProbe: fan labels and ambient temperature', () => {
   assert.equal(S.parseProbe(PROBE).ambientTempC, null);
   assert.deepEqual(S.parseProbe(PROBE).gpus.length, S.parseProbe(PROBE).gpuValid ? 1 : 0);
 });
+
+// ---- correctness fixes ----
+
+test('parseCpuStat does not count guest time twice', () => {
+  // user already includes guest: 100 user (of which 60 guest), 100 idle
+  const p = S.parseCpuStat('cpu  100 0 0 100 0 0 0 0 60 0');
+  assert.equal(p.total.total, 200);
+});
+test('offline CPUs leave no phantom core', () => {
+  const a = 'cpu  0 0 0 0 0 0 0 0\ncpu0 100 0 0 100 0 0 0 0\ncpu2 100 0 0 100 0 0 0 0';
+  const b = 'cpu  0 0 0 0 0 0 0 0\ncpu0 200 0 0 100 0 0 0 0\ncpu2 100 0 0 200 0 0 0 0';
+  const r = S.cpuPct(S.parseCpuStat(a), S.parseCpuStat(b));
+  const ids = S.parseCoreIds('cpu0 0\ncpu2 1');
+  assert.deepEqual(S.physicalCoreLoads(r.cores, ids), [100, 0]);
+});
+test('parseCoreIds keeps cores of different packages apart', () => {
+  const ids = S.parseCoreIds('cpu0 0\ncpu1 100000');   // core 0 on package 0 and 1
+  assert.deepEqual(S.physicalCoreLoads([10, 30], ids), [10, 30]);
+});
+test('parseNetDev counts only the listed physical interfaces', () => {
+  const dev = [
+    '    lo: 500 0 0 0 0 0 0 0 500 0 0 0 0 0 0 0',
+    '  eno1: 1000 0 0 0 0 0 0 0 2000 0 0 0 0 0 0 0',
+    'tailscale0: 900 0 0 0 0 0 0 0 1800 0 0 0 0 0 0 0',
+    'docker0: 5 0 0 0 0 0 0 0 5 0 0 0 0 0 0 0',
+  ].join('\n');
+  assert.deepEqual(S.parseNetDev(dev, ['eno1']), { rxBytes: 1000, txBytes: 2000 });
+  assert.deepEqual(S.parseNetDev(dev), { rxBytes: 1905, txBytes: 3805 });   // legacy: all but lo
+  assert.deepEqual(S.parseNetDev(dev, []), { rxBytes: 1905, txBytes: 3805 });
+});
+test('deviceBase leaves whole devices alone', () => {
+  assert.equal(S.deviceBase('/dev/sda2'), 'sda');
+  assert.equal(S.deviceBase('/dev/nvme0n1p7'), 'nvme0n1');
+  assert.equal(S.deviceBase('/dev/dm-0'), 'dm-0');
+  assert.equal(S.deviceBase('/dev/md0'), 'md0');
+});
+test('parseSmart: missing fields are null, an all-empty record is invalid', () => {
+  const r = S.parseSmart('{"healthPct":null,"powerOnHours":1200,"tbwTB":null,"valid":true}');
+  assert.equal(r.valid, true);
+  assert.equal(r.healthPct, null);
+  assert.equal(r.powerOnHours, 1200);
+  assert.equal(S.parseSmart('{"healthPct":null,"powerOnHours":null,"tbwTB":null,"valid":true}').valid, false);
+});
+test('parseUpdate reads the updater status', () => {
+  const u = S.parseUpdate('STATE=available\nLOCAL=58f2336\nREMOTE=abc1234\nCOUNT=3\nSUBJECT=fix: a=b thing');
+  assert.equal(u.state, 'available');
+  assert.equal(u.count, 3);
+  assert.equal(u.subject, 'fix: a=b thing');
+  assert.equal(S.parseUpdate('').state, 'unknown');
+  const a = S.parseUpdate('RESULT=updated\nNEEDS_ROOT=1\nSTATE=current');
+  assert.equal(a.result, 'updated');
+  assert.equal(a.needsRoot, true);
+});

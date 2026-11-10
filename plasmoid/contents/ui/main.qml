@@ -3,6 +3,8 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import org.kde.plasma.plasmoid
 import org.kde.plasma.plasma5support as P5S
+import org.kde.kirigami as Kirigami
+import "sysparse.js" as Sys
 
 PlasmoidItem {
     id: root
@@ -10,6 +12,11 @@ PlasmoidItem {
     // When pinned, the expanded popup stays open after losing focus.
     property bool keepOpen: false
     hideOnWindowDeactivate: !keepOpen
+
+    // On the desktop: fall back to the compact view once the widget is dragged
+    // smaller than the full view can usefully render.
+    switchWidth: Kirigami.Units.gridUnit * 11
+    switchHeight: Kirigami.Units.gridUnit * 9
 
     // Resolved UI language ("system" → locale, else de/en override).
     readonly property string uiLang: {
@@ -39,9 +46,11 @@ PlasmoidItem {
     // Pick the first battery (BAT0, BAT1, … or vendor names like "macsmc-battery")
     // dynamically, then cat its uevent plus three optional Lenovo charge files;
     // missing files become empty BATTINFO_* values the parser treats as "not supported".
+    // Peripheral batteries (mouse, keyboard, headset: scope "Device") are skipped.
     readonly property string _probeCmd:
         "B=$(for d in /sys/class/power_supply/*; do " +
-        "  [ \"$(cat \"$d/type\" 2>/dev/null)\" = Battery ] && echo \"$d\" && break; done); " +
+        "  [ \"$(cat \"$d/type\" 2>/dev/null)\" = Battery ] || continue; " +
+        "  [ \"$(cat \"$d/scope\" 2>/dev/null)\" = Device ] && continue; echo \"$d\"; break; done); " +
         "[ -n \"$B\" ] && cat \"$B/uevent\" 2>/dev/null; " +
         "echo \"HP_CHARGE_START=$(cat \"$B/charge_control_start_threshold\" 2>/dev/null)\"; " +
         "echo \"HP_CHARGE_END=$(cat \"$B/charge_control_end_threshold\" 2>/dev/null)\"; " +
@@ -52,8 +61,8 @@ PlasmoidItem {
         engine: "executable"
         connectedSources: []
         onNewData: function(source, data) {
+            disconnectSource(source)   // first: a throwing parser must not leave the source connected (= frozen widget)
             battery.applyRawOutput(data["stdout"] || "")
-            disconnectSource(source)
         }
     }
 
@@ -72,7 +81,11 @@ PlasmoidItem {
         "echo '===RAPL2==='; cat /sys/class/powercap/intel-rapl:0/energy_uj 2>/dev/null; " +
         "echo '===RAPLMAX==='; cat /sys/class/powercap/intel-rapl:0/max_energy_range_uj 2>/dev/null; " +
         "echo '===MEM==='; cat /proc/meminfo; " +
-        "echo '===CORES==='; for c in /sys/devices/system/cpu/cpu[0-9]*; do echo \"$(basename $c) $(cat $c/topology/core_id 2>/dev/null)\"; done; " +
+        // physical NICs only (bridges, VPN and container interfaces have no device link)
+        "echo '===NETPHYS==='; for n in /sys/class/net/*; do [ -e \"$n/device\" ] && basename \"$n\"; done; " +
+        // "cpuN <package*100000 + core_id>": unique per physical core, also multi-socket
+        "echo '===CORES==='; for c in /sys/devices/system/cpu/cpu[0-9]*; do [ -r $c/topology/core_id ] || continue; " +
+        "echo \"$(basename $c) $(( $(cat $c/topology/physical_package_id 2>/dev/null || echo 0) * 100000 + $(cat $c/topology/core_id) ))\"; done; " +
         "echo '===DF==='; df -B1 --output=source,used,size / | tail -1; " +
         // whole disk backing / (walks up through LUKS/LVM/partitions)
         "echo '===ROOTDEV==='; lsblk -nso KNAME,TYPE \"$(df --output=source / | tail -1)\" 2>/dev/null | awk '$2==\"disk\"{print $1; exit}'; " +
@@ -88,11 +101,15 @@ PlasmoidItem {
         "echo \"VRAMUSED=$(cat $c/mem_info_vram_used 2>/dev/null)\"; " +
         "echo \"VRAMTOTAL=$(cat $c/mem_info_vram_total 2>/dev/null)\"; break; fi; done; " +
         // NVIDIA (proprietary driver) exposes nothing in sysfs/hwmon — ask nvidia-smi
-        "echo '===NVGPU==='; command -v nvidia-smi >/dev/null 2>&1 && timeout 3 nvidia-smi " +
+        // — but never wake a runtime-suspended card (hybrid laptops) just to read it
+        "echo '===NVGPU==='; NV=0; for d in /sys/bus/pci/drivers/nvidia/0000:*; do [ -e \"$d\" ] || continue; " +
+        "[ \"$(cat \"$d/power/runtime_status\" 2>/dev/null)\" = suspended ] || NV=1; done; " +
+        "[ $NV = 1 ] && command -v nvidia-smi >/dev/null 2>&1 && timeout 3 nvidia-smi " +
         "--query-gpu=index,pci.bus_id,name,utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw,fan.speed " +
         "--format=csv,noheader,nounits 2>/dev/null; " +
         "echo '===POWER==='; " +
-        "HB=0; for b in /sys/class/power_supply/*; do [ \"$(cat \"$b/type\" 2>/dev/null)\" = Battery ] && HB=1 && break; done; echo \"HASBATTERY=$HB\"; " +
+        "HB=0; for b in /sys/class/power_supply/*; do [ \"$(cat \"$b/type\" 2>/dev/null)\" = Battery ] || continue; " +
+        "  [ \"$(cat \"$b/scope\" 2>/dev/null)\" = Device ] && continue; HB=1; break; done; echo \"HASBATTERY=$HB\"; " +
         "for c in /sys/class/drm/card[0-9]*/device; do " +
         "  ph=\"$c/hwmon\"; [ -d \"$ph\" ] || continue; " +
         "  for hw in \"$ph\"/hwmon*; do [ -e \"$hw/power1_input\" ] || continue; " +
@@ -124,8 +141,8 @@ PlasmoidItem {
         engine: "executable"
         connectedSources: []
         onNewData: function(source, data) {
-            systemData.applyProbe(data["stdout"] || "")
             disconnectSource(source)
+            systemData.applyProbe(data["stdout"] || "")
         }
     }
 
@@ -134,8 +151,8 @@ PlasmoidItem {
         engine: "executable"
         connectedSources: []
         onNewData: function(source, data) {
-            systemData.applyProfile(data["stdout"] || "")
             disconnectSource(source)
+            systemData.applyProfile(data["stdout"] || "")
         }
     }
 
@@ -173,8 +190,8 @@ PlasmoidItem {
         engine: "executable"
         connectedSources: []
         onNewData: function(source, data) {
-            controlData.applyControlProbe(data["stdout"] || "")
             disconnectSource(source)
+            controlData.applyControlProbe(data["stdout"] || "")
         }
     }
 
@@ -193,6 +210,11 @@ PlasmoidItem {
         id: inhibitor
         engine: "executable"
         connectedSources: []
+        // data only arrives when the process ended (failed to start / was killed)
+        onNewData: function(source, data) {
+            disconnectSource(source)
+            control.inhibited = false
+        }
     }
 
     function setScreenBrightness(raw) {
@@ -242,8 +264,75 @@ PlasmoidItem {
             probe.connectSource(root._probeCmd)
             sysProbe.connectSource(root._sysProbeCmd)
             profileProbe.connectSource(root._profileGetCmd)
-            ctrlProbe.connectSource(root._ctrlProbeCmd)
+            // the quick controls are only visible in the open popup / desktop view
+            if (root.expanded) ctrlProbe.connectSource(root._ctrlProbeCmd)
         }
+    }
+    onExpandedChanged: if (root.expanded) ctrlProbe.connectSource(root._ctrlProbeCmd)
+
+    // ---- built-in updater (healthpanel-update; see README "Updates") ----
+    // phase: "" idle | "busy" applying | "done" updated (restart pending) | "failed"
+    property string updateState: "unknown"     // current | available | unsupported | error | unknown
+    property string updatePhase: ""
+    property string updateLocal: ""
+    property string updateRemote: ""
+    property int    updateCount: 0
+    property string updateSubject: ""
+    property string updateMessage: ""
+    property bool   updateNeedsRoot: false
+    readonly property bool updateAvailable: Plasmoid.configuration.checkUpdates
+        && (updateState === "available" || updatePhase !== "")
+    readonly property string _updater: "\"$HOME/.local/bin/healthpanel-update\""
+
+    function _applyUpdateStatus(stdout) {
+        var u = Sys.parseUpdate(stdout)
+        if (u.state === "unknown") return u       // updater not installed / no output
+        updateState = u.state
+        updateLocal = u.local; updateRemote = u.remote
+        updateCount = u.count; updateSubject = u.subject
+        return u
+    }
+    P5S.DataSource {
+        id: updateProbe
+        engine: "executable"
+        connectedSources: []
+        onNewData: function(source, data) {
+            disconnectSource(source)
+            if (root.updatePhase === "") root._applyUpdateStatus(data["stdout"] || "")
+        }
+    }
+    P5S.DataSource {
+        id: updateRunner
+        engine: "executable"
+        connectedSources: []
+        onNewData: function(source, data) {
+            disconnectSource(source)
+            var u = root._applyUpdateStatus(data["stdout"] || "")
+            root.updateNeedsRoot = u.needsRoot
+            root.updateMessage = u.message
+            root.updatePhase = (u.result === "updated") ? "done" : "failed"
+        }
+    }
+    function checkForUpdate(force) {
+        if (!Plasmoid.configuration.checkUpdates || root.updatePhase === "busy") return
+        updateProbe.connectSource("[ -x " + root._updater + " ] && " + root._updater
+            + (force ? " check" : " status --max-age 21600"))
+    }
+    function applyUpdate() {
+        if (root.updatePhase === "busy") return
+        root.updatePhase = "busy"
+        root.updateMessage = ""
+        updateRunner.connectSource(root._updater + " apply")
+    }
+    function dismissUpdate() { root.updatePhase = ""; root.checkForUpdate(false) }
+    // Plasma keeps widget QML in memory: new code only loads with a fresh shell.
+    function restartShell() { root.launch("systemctl --user restart plasma-plasmashell.service") }
+    Timer {
+        interval: 30 * 60 * 1000       // the updater itself only asks the remote every 6 h
+        running: Plasmoid.configuration.checkUpdates
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: root.checkForUpdate(false)
     }
 
     // ---- presentation ----
@@ -265,12 +354,16 @@ PlasmoidItem {
         ? "Health " + battery.fmtPct(battery.healthPct)
             + " · Cycles " + battery.cycleCount
             + (battery.status ? " · " + battery.status : "")
+            + (root.updateState === "available" && Plasmoid.configuration.checkUpdates ? "\n" + root._updateHint : "")
         : root._systemSummary()
+            + (root.updateState === "available" && Plasmoid.configuration.checkUpdates ? "\n" + root._updateHint : "")
+    readonly property string _updateHint: root.uiLang === "de" ? "Update verfügbar" : "Update available"
 
     compactRepresentation: Compact {
         battery: root.battery
         system: root.system
         lang: root.uiLang
+        updateAvailable: root.updateState === "available" && Plasmoid.configuration.checkUpdates
         onToggleExpanded: root.expanded = !root.expanded
     }
 
@@ -280,6 +373,17 @@ PlasmoidItem {
         control: root.control
         lang: root.uiLang
         pinned: root.keepOpen
+        updateVisible: root.updateAvailable
+        updatePhase: root.updatePhase
+        updateLocal: root.updateLocal
+        updateRemote: root.updateRemote
+        updateCount: root.updateCount
+        updateSubject: root.updateSubject
+        updateMessage: root.updateMessage
+        updateNeedsRoot: root.updateNeedsRoot
+        onApplyUpdate: root.applyUpdate()
+        onDismissUpdate: root.dismissUpdate()
+        onRestartShell: root.restartShell()
         onSetProfile: function(name) { root.setPowerProfile(name) }
         onTogglePin: root.keepOpen = !root.keepOpen
         onSetScreenBrightness: function(raw) { root.setScreenBrightness(raw) }

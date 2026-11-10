@@ -19,6 +19,8 @@ systemctl --user disable --now healthpanel-snapshot.timer 2>/dev/null || true
 for f in \
     "$BIN_DIR/healthpanel" \
     "$BIN_DIR/healthpanel-snapshot" \
+    "$BIN_DIR/healthpanel-update" \
+    "${XDG_STATE_HOME:-$HOME/.local/state}/healthpanel/installed-commit" \
     "$UNIT_DIR/healthpanel-snapshot.service" \
     "$UNIT_DIR/healthpanel-snapshot.timer"; do
     rm -fv "$f"

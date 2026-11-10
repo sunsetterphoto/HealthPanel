@@ -18,6 +18,14 @@ ColumnLayout {
     property bool showScreenBrightness: true
     property bool showKbdBrightness: true
     property bool showVolume: true
+    // true while the surrounding view scrolls: the sliders then leave the mouse
+    // wheel to the scroll view instead of changing brightness/volume in passing
+    property bool inScroll: false
+
+    // which rows are actually on screen (config toggle AND backend available)
+    readonly property bool _vScreen: col.showScreenBrightness && col._ok && col.control.hasScreen
+    readonly property bool _vKbd: col.showKbdBrightness && col._ok && col.control.hasKbd
+    readonly property bool _vVolume: col.showVolume && col._ok && col.control.hasVolume
 
     signal setScreenBrightness(real raw)
     signal setKbdBrightness(real val)
@@ -48,21 +56,25 @@ ColumnLayout {
             elide: Text.ElideRight
         }
         QQC2.Switch {
-            checked: col._ok && col.control.inhibited
-            onToggled: col.setInhibit(checked)
+            id: inhibitSwitch
+            // toggling replaces the binding with a plain value — re-bind so the
+            // switch keeps following the real state (e.g. when the inhibitor dies)
+            function _bind() { checked = Qt.binding(function () { return col._ok && col.control.inhibited }) }
+            Component.onCompleted: _bind()
+            onToggled: { col.setInhibit(checked); _bind() }
         }
     }
 
     Kirigami.Separator {
         Layout.fillWidth: true; Layout.topMargin: 2; Layout.bottomMargin: 2
         opacity: 0.6
-        visible: col.showInhibit && (col.showScreenBrightness || col.showVolume)
+        visible: col.showInhibit && (col._vScreen || col._vKbd || col._vVolume)
     }
 
     // ---- screen brightness ----
     ColumnLayout {
         Layout.fillWidth: true
-        visible: col.showScreenBrightness && col._ok && col.control.hasScreen
+        visible: col._vScreen
         spacing: 2
         MLabel { text: col.tr("Screen") }
         RowLayout {
@@ -75,6 +87,7 @@ ColumnLayout {
             QQC2.Slider {
                 id: scrSlider
                 Layout.fillWidth: true
+                wheelEnabled: !col.inScroll
                 from: 1
                 to: col._ok ? Math.max(1, col.control.screenBrightnessMax) : 1
                 Component.onCompleted: if (col._ok) value = col.control.screenBrightness
@@ -96,7 +109,7 @@ ColumnLayout {
     // ---- keyboard backlight ----
     ColumnLayout {
         Layout.fillWidth: true
-        visible: col.showKbdBrightness && col._ok && col.control.hasKbd
+        visible: col._vKbd
         spacing: 2
         MLabel { text: col.tr("Keyboard") }
         RowLayout {
@@ -109,6 +122,7 @@ ColumnLayout {
             QQC2.Slider {
                 id: kbdSlider
                 Layout.fillWidth: true
+                wheelEnabled: !col.inScroll
                 from: 0
                 to: col._ok ? Math.max(1, col.control.kbdBrightnessMax) : 1
                 stepSize: 1
@@ -127,14 +141,13 @@ ColumnLayout {
     Kirigami.Separator {
         Layout.fillWidth: true; Layout.topMargin: 2; Layout.bottomMargin: 2
         opacity: 0.6
-        visible: col.showVolume && col._ok && col.control.hasVolume
-            && (col.showScreenBrightness || col.showKbdBrightness || col.showInhibit)
+        visible: col._vVolume && (col._vScreen || col._vKbd)
     }
 
     // ---- volume + mute ----
     ColumnLayout {
         Layout.fillWidth: true
-        visible: col.showVolume && col._ok && col.control.hasVolume
+        visible: col._vVolume
         spacing: 2
         MLabel { text: col.tr("Volume") }
         RowLayout {
@@ -148,6 +161,7 @@ ColumnLayout {
             QQC2.Slider {
                 id: volSlider
                 Layout.fillWidth: true
+                wheelEnabled: !col.inScroll
                 from: 0; to: 1
                 opacity: (col._ok && col.control.muted) ? 0.5 : 1
                 Component.onCompleted: if (col._ok) value = col.control.volume

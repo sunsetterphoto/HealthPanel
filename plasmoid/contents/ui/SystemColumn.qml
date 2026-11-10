@@ -39,6 +39,9 @@ ColumnLayout {
     readonly property var _order: LayoutMeta.parseOrder(col.layoutJson, LayoutMeta.systemSections())
 
     readonly property bool _ok: system !== null && system !== undefined && system.valid === true
+    // track/background tint derived from the theme's text colour, so bars and rings
+    // stay visible on light themes too
+    function _fade(a) { var c = Kirigami.Theme.textColor; return Qt.rgba(c.r, c.g, c.b, a) }
     spacing: Kirigami.Units.smallSpacing
 
     // A thin section divider that only appears when something visible sits above it.
@@ -56,7 +59,7 @@ ColumnLayout {
         Layout.fillWidth: true
         Layout.preferredHeight: 5
         radius: 3
-        color: Qt.rgba(1, 1, 1, 0.09)
+        color: col._fade(0.12)
         Rectangle {
             width: parent.width * Math.max(0, Math.min(1, parent.fraction))
             height: parent.height; radius: 3; color: parent.fill
@@ -70,8 +73,10 @@ ColumnLayout {
         property string centerText: ""
         implicitWidth: Kirigami.Units.gridUnit * 2.4
         implicitHeight: Kirigami.Units.gridUnit * 2.4
+        readonly property color track: col._fade(0.14)
         onFractionChanged: cv.requestPaint()
         onFillChanged: cv.requestPaint()
+        onTrackChanged: cv.requestPaint()
         Canvas {
             id: cv
             anchors.fill: parent
@@ -79,7 +84,7 @@ ColumnLayout {
                 var ctx = getContext("2d"); ctx.reset();
                 var cx = width / 2, cy = height / 2, rr = Math.min(width, height) / 2 - 4;
                 ctx.lineWidth = 4; ctx.lineCap = "round";
-                ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.12);
+                ctx.strokeStyle = ring.track;
                 ctx.beginPath(); ctx.arc(cx, cy, rr, 0, 2 * Math.PI); ctx.stroke();
                 var f = Math.max(0, Math.min(1, ring.fraction));
                 if (f > 0) {
@@ -106,6 +111,8 @@ ColumnLayout {
         Layout.fillWidth: true
         Layout.preferredHeight: Kirigami.Units.gridUnit * 1.4
         onPointsChanged: requestPaint()
+        onWidthChanged: requestPaint()      // a Canvas does not redraw itself on resize
+        onHeightChanged: requestPaint()
         onPaint: {
             var ctx = getContext("2d"); ctx.reset();
             var pts = spark.points;
@@ -136,7 +143,6 @@ ColumnLayout {
             Layout.fillWidth: true
             visible: col._ok && col.system.hasPowerProfile
             spacing: Kirigami.Units.smallSpacing
-            QQC2.ButtonGroup { id: pmGroup }
             MLabel { text: col.tr("Power mode") }
             RowLayout {
                 Layout.fillWidth: true
@@ -147,16 +153,42 @@ ColumnLayout {
                         { id: "balanced",    label: "Balanced" },
                         { id: "power-saver", label: "Power Saver" }
                     ]
-                    delegate: QQC2.Button {
+                    // A plain segmented control instead of three Buttons: `selected`
+                    // is a pure binding to the real profile (a checkable Button drops
+                    // its binding on click and then shows stale state), and the widths
+                    // follow the label lengths so nothing is cut off in a narrow column.
+                    delegate: Rectangle {
+                        id: pmSeg
                         required property var modelData
+                        readonly property bool selected: col._ok && col.system.powerProfile === pmSeg.modelData.id
                         Layout.fillWidth: true
-                        flat: true
-                        checkable: true
-                        QQC2.ButtonGroup.group: pmGroup
-                        checked: col._ok && col.system.powerProfile === modelData.id
-                        text: col.tr(modelData.label)
-                        font.pixelSize: Kirigami.Theme.smallFont.pixelSize
-                        onClicked: col.setProfile(modelData.id)
+                        Layout.minimumWidth: 0
+                        Layout.horizontalStretchFactor: Math.max(1, Math.ceil(pmLabel.implicitWidth))
+                        implicitWidth: pmLabel.implicitWidth + Kirigami.Units.smallSpacing * 2
+                        implicitHeight: pmLabel.implicitHeight + Kirigami.Units.smallSpacing * 2
+                        radius: Kirigami.Units.cornerRadius
+                        color: pmSeg.selected ? col._fade(0.16)
+                             : (pmHover.hovered || pmSeg.activeFocus ? col._fade(0.08) : "transparent")
+                        border.width: pmSeg.selected || pmSeg.activeFocus ? 1 : 0
+                        border.color: pmSeg.activeFocus ? Kirigami.Theme.highlightColor : col._fade(0.22)
+                        activeFocusOnTab: true
+                        Accessible.role: Accessible.RadioButton
+                        Accessible.name: pmLabel.text
+                        Accessible.checked: pmSeg.selected
+                        Keys.onSpacePressed: col.setProfile(pmSeg.modelData.id)
+                        Keys.onReturnPressed: col.setProfile(pmSeg.modelData.id)
+                        PC3.Label {
+                            id: pmLabel
+                            anchors.centerIn: parent
+                            width: Math.min(implicitWidth, parent.width - 4)
+                            horizontalAlignment: Text.AlignHCenter
+                            elide: Text.ElideRight
+                            text: col.tr(pmSeg.modelData.label)
+                            font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                            font.bold: pmSeg.selected
+                        }
+                        HoverHandler { id: pmHover; cursorShape: Qt.PointingHandCursor }
+                        TapHandler { onTapped: col.setProfile(pmSeg.modelData.id) }
                     }
                 }
             }
@@ -180,19 +212,34 @@ ColumnLayout {
                         opacity: 0.5; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
                     }
                 }
-                Item { Layout.fillWidth: true }
-                Row {
-                    spacing: 2
-                    Repeater {
-                        model: col._ok ? (col.cpuCoresLogical ? col.system.coreLoadsLogical : col.system.coreLoads) : []
-                        delegate: Rectangle {
-                            required property var modelData
-                            width: 3; height: 15; radius: 1
-                            color: Qt.rgba(1, 1, 1, 0.12)
-                            Rectangle {
-                                width: parent.width; radius: 1; color: "#3daee9"; opacity: 0.85
-                                height: parent.height * Math.max(0.04, Math.min(1, parent.modelData / 100))
-                                anchors.bottom: parent.bottom
+                // per-core mini-bars: right-aligned, and they get thinner / lose their
+                // gaps when the column is too narrow for the core count
+                Item {
+                    id: coreBox
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    implicitHeight: 15
+                    clip: true
+                    readonly property var loads: col._ok ? (col.cpuCoresLogical ? col.system.coreLoadsLogical : col.system.coreLoads) : []
+                    readonly property int n: loads.length
+                    readonly property int gap: (n > 0 && n * 5 - 2 <= width) ? 2 : (n * 3 - 1 <= width ? 1 : 0)
+                    readonly property int barW: n > 0 ? Math.max(1, Math.min(3, Math.floor((width - (n - 1) * gap) / n))) : 3
+                    Row {
+                        anchors.right: parent.right
+                        spacing: coreBox.gap
+                        Repeater {
+                            model: coreBox.n
+                            delegate: Rectangle {
+                                id: coreBar
+                                required property int index
+                                readonly property real load: coreBar.index < coreBox.loads.length ? coreBox.loads[coreBar.index] : 0
+                                width: coreBox.barW; height: 15; radius: 1
+                                color: col._fade(0.14)
+                                Rectangle {
+                                    width: parent.width; radius: 1; color: "#3daee9"; opacity: 0.85
+                                    height: parent.height * Math.max(0.04, Math.min(1, coreBar.load / 100))
+                                    anchors.bottom: parent.bottom
+                                }
                             }
                         }
                     }
@@ -256,6 +303,7 @@ ColumnLayout {
                     RowLayout {
                         Layout.fillWidth: true
                         RowLayout {
+                            Layout.fillWidth: true
                             spacing: Kirigami.Units.smallSpacing
                             MLabel { text: gpuBlock.multi ? "GPU " + (gpuBlock.index + 1) : "GPU" }
                             PC3.Label {
@@ -263,15 +311,16 @@ ColumnLayout {
                                 text: gpuBlock.g ? gpuBlock.g.name : ""
                                 opacity: 0.5; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
                                 elide: Text.ElideRight
-                                Layout.maximumWidth: Kirigami.Units.gridUnit * 7
+                                Layout.minimumWidth: 0      // the name gives way first
                             }
                             PC3.Label {
                                 visible: col.showTemps && gpuBlock.g !== null && gpuBlock.g.tempC !== null
                                 text: visible ? col.system.fmtTemp(gpuBlock.g.tempC) : ""
                                 opacity: 0.5; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                                Layout.minimumWidth: implicitWidth
                             }
+                            Item { Layout.fillWidth: true }
                         }
-                        Item { Layout.fillWidth: true }
                         Ring {
                             visible: col.gpuStyle === "ring"
                             fraction: gpuBlock.g ? gpuBlock.g.busy / 100 : 0
@@ -295,8 +344,10 @@ ColumnLayout {
                             visible: gpuBlock.multi
                             text: gpuBlock.g ? col.system.fmtGB(gpuBlock.g.vramUsedGB) + " / " + col.system.fmtGB(gpuBlock.g.vramTotalGB) : ""
                             opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                            elide: Text.ElideRight
+                            Layout.fillWidth: true; Layout.minimumWidth: 0
                         }
-                        Item { Layout.fillWidth: true }
+                        Item { Layout.fillWidth: true; visible: !gpuBlock.multi }
                         PC3.Label { text: gpuBlock.g ? col.system.fmtPct(gpuBlock.g.vramPct) : "—"; font.bold: true }
                     }
                     PC3.Label {
@@ -390,21 +441,25 @@ ColumnLayout {
             spacing: 2
             RowLayout {
                 Layout.fillWidth: true
-                MLabel { text: "DISK" }
+                MLabel { text: col.tr("DISK") }
                 PC3.Label {
                     leftPadding: Kirigami.Units.smallSpacing
                     text: col._ok ? "↓ " + col.system.fmtRate(col.system.diskReadMBps) + "  ↑ " + col.system.fmtRate(col.system.diskWriteMBps) : ""
                     opacity: 0.45; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                    elide: Text.ElideRight
+                    Layout.minimumWidth: 0          // the rates give way first
                 }
                 PC3.Label {
                     visible: col._ok && col.showTemps && col.system.hasDiskTemp
                     text: col._ok ? col.system.fmtTemp(col.system.diskTempC) : ""
                     opacity: 0.5; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                    Layout.minimumWidth: implicitWidth
                 }
                 PC3.Label {
                     visible: col._ok && col.showDiskSensor1 && col.system.hasDiskTempSensor1
                     text: col._ok ? "S1 " + col.system.fmtTemp(col.system.diskTempSensor1C) : ""
                     opacity: 0.5; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                    Layout.minimumWidth: implicitWidth
                 }
                 Item { Layout.fillWidth: true }
                 Ring {
@@ -430,21 +485,21 @@ ColumnLayout {
                 Layout.fillWidth: true
                 visible: col._ok && col.showTemps && col.system.otherDiskTemps.length > 0
                 MLabel { text: col.tr("Drives"); Layout.alignment: Qt.AlignTop }
-                PC3.Label {
+                // one small label per drive; they wrap onto further lines as needed
+                Flow {
                     Layout.fillWidth: true
-                    horizontalAlignment: Text.AlignRight
-                    wrapMode: Text.WordWrap
-                    text: {
-                        if (!col._ok) return ""
-                        var parts = []
-                        for (var i = 0; i < col.system.otherDiskTemps.length; i++) {
-                            var d = col.system.otherDiskTemps[i]
-                            // non-breaking space keeps "sda 33°C" together when wrapping
-                            parts.push(d.dev + "\u00a0" + col.system.fmtTemp(d.tempC))
+                    spacing: Kirigami.Units.smallSpacing
+                    Repeater {
+                        model: col._ok ? col.system.otherDiskTemps.length : 0
+                        delegate: PC3.Label {
+                            id: driveLabel
+                            required property int index
+                            readonly property var d: (col._ok && driveLabel.index < col.system.otherDiskTemps.length)
+                                ? col.system.otherDiskTemps[driveLabel.index] : null
+                            text: driveLabel.d ? driveLabel.d.dev + " " + col.system.fmtTemp(driveLabel.d.tempC) : ""
+                            opacity: 0.7; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
                         }
-                        return parts.join("  ")
                     }
-                    opacity: 0.7; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
                 }
             }
             RowLayout {
@@ -452,15 +507,25 @@ ColumnLayout {
                 visible: col._ok && col.showSmart && col.system.smartValid
                 spacing: Kirigami.Units.smallSpacing
                 PC3.Label {
+                    visible: col._ok && col.system.hasSmartHealth
                     text: col._ok ? col.system.fmtPct(col.system.smartHealthPct) : ""
-                    color: "#2ecc71"; font.bold: true; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                    color: !col._ok || col.system.smartHealthPct >= 80 ? "#2ecc71"
+                         : col.system.smartHealthPct >= 50 ? "#f1c40f" : "#e74c3c"
+                    font.bold: true; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
                 }
-                PC3.Label { text: col.tr("Health"); opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
-                PC3.Label { text: "·"; opacity: 0.3; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
-                PC3.Label { text: col._ok ? col.system.fmtHours(col.system.smartPowerOnHours) : ""; opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
-                PC3.Label { text: "·"; opacity: 0.3; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
-                PC3.Label { text: col._ok ? col.system.fmtTbw(col.system.smartTbwTB) : ""; opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize }
-                Item { Layout.fillWidth: true }
+                PC3.Label {
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                    opacity: 0.55; font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                    text: {
+                        if (!col._ok) return ""
+                        var parts = []
+                        if (col.system.hasSmartHealth) parts.push(col.tr("Health"))
+                        if (col.system.hasSmartHours) parts.push(col.system.fmtHours(col.system.smartPowerOnHours))
+                        if (col.system.hasSmartTbw) parts.push(col.system.fmtTbw(col.system.smartTbwTB))
+                        return parts.join("  ·  ")
+                    }
+                }
             }
         }
     }
@@ -535,7 +600,7 @@ ColumnLayout {
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 2
-            MLabel { text: "NETZ" }
+            MLabel { text: col.tr("NET") }
             // text style: prominent down/up blocks
             RowLayout {
                 visible: col.netStyle === "text"

@@ -3,23 +3,40 @@
 # Called by systemd --user timer (daily, Persistent=true).
 set -euo pipefail
 
-BAT_DIR="${BAT_DIR:-$(for d in /sys/class/power_supply/*; do
-    [ "$(cat "$d/type" 2>/dev/null)" = Battery ] && echo "$d" && break
-done || true)}"
-BAT_DIR="${BAT_DIR:-/sys/class/power_supply/BAT0}"
+# First system battery; peripheral batteries (mouse, keyboard, headset: scope
+# "Device") are skipped — they have no health to track.
+find_battery() {
+    local d
+    for d in /sys/class/power_supply/*; do
+        [ "$(cat "$d/type" 2>/dev/null)" = Battery ] || continue
+        [ "$(cat "$d/scope" 2>/dev/null)" = Device ] && continue
+        echo "$d"; return 0
+    done
+    return 0
+}
+BAT_DIR="${BAT_DIR:-$(find_battery)}"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/healthpanel"
 HISTORY_FILE="$STATE_DIR/history.tsv"
 
 # No battery (desktop/workstation): nothing to log — succeed quietly so the
 # daily timer does not leave a failed unit behind.
-[[ -d "$BAT_DIR" ]] || { echo "no battery found — nothing to snapshot"; exit 0; }
+[[ -n "$BAT_DIR" && -d "$BAT_DIR" ]] || { echo "no battery found — nothing to snapshot"; exit 0; }
 
 mkdir -p "$STATE_DIR"
 
 read_sys() { local f="$BAT_DIR/$1"; [[ -r "$f" ]] && cat "$f" 2>/dev/null || echo ""; }
 
-E_FULL_DESIGN=$(read_sys energy_full_design)
-E_FULL=$(read_sys energy_full)
+# energy-based gauges (µWh), else charge-based ones (µAh × design voltage)
+bat_energy() {
+    local e c v
+    e=$(read_sys "$1"); [[ -n "$e" ]] && { printf '%s' "$e"; return 0; }
+    c=$(read_sys "$2"); [[ -n "$c" ]] || return 0
+    v=$(read_sys voltage_min_design); [[ -n "$v" && "$v" != 0 ]] || v=$(read_sys voltage_now)
+    [[ -n "$v" ]] || return 0
+    awk -v c="$c" -v v="$v" 'BEGIN{ printf "%.0f", c*v/1e6 }'
+}
+E_FULL_DESIGN=$(bat_energy energy_full_design charge_full_design)
+E_FULL=$(bat_energy energy_full charge_full)
 CYCLES=$(read_sys cycle_count)
 
 HEALTH=$(awk -v a="$E_FULL" -v b="$E_FULL_DESIGN" 'BEGIN{
@@ -27,6 +44,9 @@ HEALTH=$(awk -v a="$E_FULL" -v b="$E_FULL_DESIGN" 'BEGIN{
 }')
 FCC_WH=$(awk -v v="$E_FULL" 'BEGIN{ if (v+0 == 0) { print "n/a" } else { printf "%.2f", v/1000000 } }')
 DESIGN_WH=$(awk -v v="$E_FULL_DESIGN" 'BEGIN{ if (v+0 == 0) { print "n/a" } else { printf "%.2f", v/1000000 } }')
+
+# a battery that reports no capacity at all has nothing worth logging
+[[ "$HEALTH" != "n/a" ]] || { echo "battery reports no capacity — nothing to snapshot"; exit 0; }
 
 DATE=$(date '+%Y-%m-%d %H:%M:%S')
 

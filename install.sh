@@ -9,12 +9,16 @@ set -euo pipefail
 
 ENABLE_CPU_POWER=0
 ENABLE_SENSOR_MODULES=0
+USER_ONLY=0
 for a in "$@"; do
     case "$a" in
+        --user-only)             USER_ONLY=1 ;;
         --enable-cpu-power)      ENABLE_CPU_POWER=1 ;;
         --enable-sensor-modules) ENABLE_SENSOR_MODULES=1 ;;
         -h|--help)
-            echo "Usage: ./install.sh [--enable-cpu-power] [--enable-sensor-modules]"
+            echo "Usage: ./install.sh [--user-only] [--enable-cpu-power] [--enable-sensor-modules]"
+            echo "  --user-only              only the parts that need no root (widget, CLI, user"
+            echo "                           timer) — what the built-in updater runs"
             echo "  --enable-cpu-power       make RAPL CPU package power readable (udev rule)"
             echo "  --enable-sensor-modules  load optional hwmon modules at boot when the hardware"
             echo "                           has them: drivetemp (SATA drive temperatures) and"
@@ -44,10 +48,11 @@ link() {
 
 echo "Installing HealthPanel (widget + healthpanel CLI) from $PROJECT_DIR ..."
 
-chmod +x "$PROJECT_DIR/healthpanel" "$PROJECT_DIR/healthpanel-snapshot"
+chmod +x "$PROJECT_DIR/healthpanel" "$PROJECT_DIR/healthpanel-snapshot" "$PROJECT_DIR/healthpanel-update"
 
 link "$PROJECT_DIR/healthpanel"          "$BIN_DIR/healthpanel"
 link "$PROJECT_DIR/healthpanel-snapshot" "$BIN_DIR/healthpanel-snapshot"
+link "$PROJECT_DIR/healthpanel-update"   "$BIN_DIR/healthpanel-update"
 
 link "$PROJECT_DIR/systemd/healthpanel-snapshot.service" "$UNIT_DIR/healthpanel-snapshot.service"
 link "$PROJECT_DIR/systemd/healthpanel-snapshot.timer"   "$UNIT_DIR/healthpanel-snapshot.timer"
@@ -70,8 +75,18 @@ else
     echo "kpackagetool6 not found — skipping Plasma widget install (no KDE Plasma here?)"
 fi
 
+# Remember which commit is installed — the built-in updater compares against it.
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/healthpanel"
+mkdir -p "$STATE_DIR"
+if git -C "$PROJECT_DIR" rev-parse HEAD > "$STATE_DIR/installed-commit.tmp" 2>/dev/null; then
+    mv -f "$STATE_DIR/installed-commit.tmp" "$STATE_DIR/installed-commit"
+else
+    rm -f "$STATE_DIR/installed-commit.tmp"
+fi
+
 echo
 echo "Done."
+echo "  Updates:       healthpanel-update"
 echo "  Run:           healthpanel"
 echo "  Watch:         healthpanel -w"
 echo "  History:       healthpanel --history"
@@ -83,6 +98,11 @@ case ":$PATH:" in
     *":$BIN_DIR:"*) ;;
     *) echo "WARNUNG: $BIN_DIR liegt nicht in \$PATH. Shell-Rc anpassen." ;;
 esac
+
+if [[ "$USER_ONLY" -eq 1 ]]; then
+    echo "--user-only: System-Teile (SMART-Timer, udev, Module) übersprungen."
+    exit 0
+fi
 
 # ---- system-level SMART cache (needs root) ----
 # NOTE: system units are COPIED (not symlinked) into /etc and /usr/local/bin.

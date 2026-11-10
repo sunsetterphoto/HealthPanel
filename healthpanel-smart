@@ -20,8 +20,14 @@ tmp="$(mktemp)"
 
 # Extract health % (100 - wear), power-on hours and TB-written, trying NVMe fields
 # first, then SATA/ATA SMART attributes (ids: 9=power-on-hours, 241=LBAs-written,
-# 231/202=life-left). Any field that can't be determined becomes null.
-if [ -n "${DEV:-}" ] && smartctl -j -a "$DEV" 2>/dev/null | jq -e '
+# 231/202/177/233/169=life-left (vendor dependent)). Any field that can't be determined becomes null.
+# smartctl's exit status is a bit mask: it is non-zero for merely informational
+# bits (old error-log entries, a past-threshold attribute) while the JSON is
+# perfectly usable — so capture the output and judge by its content, not by `$?`.
+RAW=""
+[ -n "${DEV:-}" ] && RAW="$(smartctl -j -a "$DEV" 2>/dev/null || true)"
+if [ -n "$RAW" ] && printf '%s' "$RAW" | jq -e '
+        select(.nvme_smart_health_information_log != null or .ata_smart_attributes != null or .power_on_time != null) |
         def attr(ids): (.ata_smart_attributes.table // [])[]
                        | select([.id] | inside(ids)) | .raw.value;
         def attrnorm(ids): (.ata_smart_attributes.table // [])[]
@@ -30,7 +36,7 @@ if [ -n "${DEV:-}" ] && smartctl -j -a "$DEV" 2>/dev/null | jq -e '
           healthPct: (
             if .nvme_smart_health_information_log.percentage_used != null
             then (100 - .nvme_smart_health_information_log.percentage_used)
-            else ([attrnorm([231,202])] | first) end
+            else ([attrnorm([231,202,177,233,169])] | first) end
           ),
           powerOnHours: (
             .power_on_time.hours // ([attr([9])] | first)

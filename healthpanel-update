@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+# healthpanel-update — built-in updater. Notices new commits on the upstream
+# branch of the git checkout this was installed from and applies them
+# (git pull --ff-only + the user-level part of install.sh).
+#
+#   healthpanel-update                 human-readable status (checks now)
+#   healthpanel-update status [--max-age SEC]
+#                                      machine-readable, from cache if fresh enough
+#   healthpanel-update check           machine-readable, always asks the remote
+#   healthpanel-update apply           update + reinstall, machine-readable result
+#
+# Machine-readable output is KEY=value lines (STATE, LOCAL, REMOTE, COUNT,
+# SUBJECT, MESSAGE; apply adds RESULT and NEEDS_ROOT) — parsed by the widget.
+# Nothing here needs root, and nothing is changed unless `apply` is called.
+set -uo pipefail
+
+# ---- project settings (everything below this block is project-agnostic) ----
+APP="healthpanel"
+INSTALL_CMD=(./install.sh --user-only)
+# repo file : installed root-owned copy — if they differ after an update, the
+# user is told to re-run the full installer once (it asks for sudo itself)
+ROOT_FILES=(
+    "healthpanel-smart:/usr/local/bin/healthpanel-smart"
+    "systemd/healthpanel-smart.service:/etc/systemd/system/healthpanel-smart.service"
+    "systemd/healthpanel-smart.timer:/etc/systemd/system/healthpanel-smart.timer"
+)
+# ---------------------------------------------------------------------------
+
+REPO="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/$APP"
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/$APP"
+INSTALLED_FILE="$STATE_DIR/installed-commit"
+CACHE="$CACHE_DIR/update.status"
+LOG="$CACHE_DIR/update.log"
+mkdir -p "$STATE_DIR" "$CACHE_DIR"
+export GIT_TERMINAL_PROMPT=0   # never block on a credential prompt
+
+g() { git -C "$REPO" "$@"; }
+oneline() { tr -d '\r' | tr '\n' ' ' | sed 's/ *$//'; }
+
+upstream_ref() {
+    g rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null \
+        || echo "origin/$(g symbolic-ref --short HEAD 2>/dev/null || echo main)"
+}
+
+# Print the status block. $1 = 1 to contact the remote first.
+compute() {
+    local fetch="${1:-0}" msg=""
+    if ! g rev-parse --git-dir >/dev/null 2>&1; then
+        printf 'STATE=unsupported\nMESSAGE=not installed from a git checkout (%s)\n' "$REPO"
+        return 0
+    fi
+    local up; up=$(upstream_ref)
+    if [[ "$fetch" == 1 ]]; then
+        timeout 45 git -C "$REPO" fetch --quiet "${up%%/*}" 2>/dev/null || msg="remote not reachable"
+    fi
+    local head installed count=0
+    head=$(g rev-parse HEAD 2>/dev/null) || { printf 'STATE=error\nMESSAGE=empty repository\n'; return 0; }
+    installed=$(cat "$INSTALLED_FILE" 2>/dev/null || true)
+    [[ -n "$installed" ]] || installed="$head"
+    count=$(g rev-list --count "HEAD..$up" 2>/dev/null || echo 0)
+
+    local state=current remote subject=""
+    remote=$(g rev-parse --short "$up" 2>/dev/null || true)
+    if [[ "$count" -gt 0 ]]; then
+        state=available
+        subject=$(g log -1 --format=%s "$up" 2>/dev/null | oneline)
+    elif [[ "$head" != "$installed" ]]; then
+        # the checkout was updated by hand (git pull) but not reinstalled yet
+        state=available
+        remote=$(g rev-parse --short HEAD)
+        subject=$(g log -1 --format=%s HEAD 2>/dev/null | oneline)
+    fi
+    printf 'STATE=%s\nLOCAL=%s\nREMOTE=%s\nCOUNT=%s\nSUBJECT=%s\nMESSAGE=%s\nCHECKED=%s\n' \
+        "$state" "$(g rev-parse --short "$installed" 2>/dev/null || echo "${installed:0:7}")" \
+        "$remote" "$count" "$subject" "$msg" "$(date +%s)"
+}
+
+cmd_check() { compute 1 | tee "$CACHE.tmp"; mv -f "$CACHE.tmp" "$CACHE"; }
+
+cmd_status() {
+    local max_age=21600
+    [[ "${1:-}" == "--max-age" && "${2:-}" =~ ^[0-9]+$ ]] && max_age="$2"
+    if [[ -s "$CACHE" ]]; then
+        local age=$(( $(date +%s) - $(stat -c %Y "$CACHE") ))
+        # the cache only answers "is the remote newer"; a reinstall or manual pull
+        # since then is cheap to detect locally, so recompute without the network
+        if [[ "$age" -lt "$max_age" ]]; then compute 0; return 0; fi
+    fi
+    cmd_check
+}
+
+cmd_apply() {
+    exec 9>"$CACHE_DIR/update.lock"
+    flock -n 9 || { printf 'RESULT=failed\nMESSAGE=another update is already running\n'; return 1; }
+    : > "$LOG"
+    fail() { printf 'RESULT=failed\nMESSAGE=%s\n' "$1"; compute 0; return 1; }
+
+    g rev-parse --git-dir >/dev/null 2>&1 || { fail "not installed from a git checkout"; return 1; }
+    local up; up=$(upstream_ref)
+    timeout 45 git -C "$REPO" fetch --quiet "${up%%/*}" >>"$LOG" 2>&1 || { fail "remote not reachable"; return 1; }
+    if [[ "$(g rev-list --count "HEAD..$up" 2>/dev/null || echo 0)" -gt 0 ]]; then
+        [[ -z "$(g status --porcelain --untracked-files=no)" ]] \
+            || { fail "local changes in $REPO — commit or stash them first"; return 1; }
+        g merge --ff-only "$up" >>"$LOG" 2>&1 \
+            || { fail "local commits diverge from $up — update manually with git"; return 1; }
+    fi
+    ( cd "$REPO" && "${INSTALL_CMD[@]}" ) >>"$LOG" 2>&1 \
+        || { fail "installer failed — see $LOG"; return 1; }
+
+    local needs_root=0 pair src dst
+    for pair in "${ROOT_FILES[@]}"; do
+        src="$REPO/${pair%%:*}"; dst="${pair#*:}"
+        [[ -e "$dst" ]] && ! cmp -s "$src" "$dst" && needs_root=1
+    done
+    printf 'RESULT=updated\nNEEDS_ROOT=%s\n' "$needs_root"
+    compute 0 | tee "$CACHE.tmp"; mv -f "$CACHE.tmp" "$CACHE"
+}
+
+cmd_human() {
+    local out; out=$(cmd_check)
+    local state; state=$(sed -n 's/^STATE=//p' <<<"$out")
+    local v; v() { sed -n "s/^$1=//p" <<<"$out"; }
+    case "$state" in
+        current)     echo "$APP ist aktuell ($(v LOCAL))." ;;
+        available)   echo "Update verfügbar: $(v LOCAL) → $(v REMOTE)  ($(v COUNT) neue Commits)"
+                     echo "  $(v SUBJECT)"
+                     echo "Installieren mit:  $(basename "$0") apply" ;;
+        unsupported) echo "Kein Update möglich: $(v MESSAGE)" ;;
+        *)           echo "Status unbekannt: $(v MESSAGE)" ;;
+    esac
+    [[ -n "$(v MESSAGE)" && "$state" != unsupported ]] && echo "Hinweis: $(v MESSAGE)"
+    return 0
+}
+
+case "${1:-}" in
+    status) shift; cmd_status "$@" ;;
+    check)  cmd_check ;;
+    apply)  cmd_apply
+            rc=$?
+            if [[ -t 1 && $rc -eq 0 ]]; then
+                echo "Fertig. Plasma neu laden: systemctl --user restart plasma-plasmashell.service"
+            fi
+            exit $rc ;;
+    ""|show) cmd_human ;;
+    -h|--help|help) sed -n '2,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' ;;
+    *) echo "unknown command: $1 (see --help)" >&2; exit 2 ;;
+esac

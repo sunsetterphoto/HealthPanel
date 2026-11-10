@@ -36,7 +36,9 @@ function parseCpuStat(text) {
         if (!mm) return;
         var nums = mm[2].trim().split(/\s+/).map(function (x) { return parseInt(x, 10) || 0; });
         var idle = (nums[3] || 0) + (nums[4] || 0);          // idle + iowait
-        var tot = nums.reduce(function (a, b) { return a + b; }, 0);
+        // user nice system idle iowait irq softirq steal — guest/guest_nice are
+        // already contained in user/nice and must not be counted twice
+        var tot = nums.slice(0, 8).reduce(function (a, b) { return a + b; }, 0);
         var entry = { idle: idle, total: tot };
         if (mm[1] === "") total = entry;
         else cores[parseInt(mm[1], 10)] = entry;
@@ -55,24 +57,27 @@ function _pctFromDelta(prev, cur) {
 
 function cpuPct(prev, cur) {
     var cores = [];
+    // sparse: an offline CPU has no line in /proc/stat and stays undefined here
     for (var i = 0; i < cur.cores.length; i++)
-        cores[i] = _pctFromDelta(prev.cores[i], cur.cores[i]);
+        if (cur.cores[i] && prev.cores[i]) cores[i] = _pctFromDelta(prev.cores[i], cur.cores[i]);
     return { total: _pctFromDelta(prev.total, cur.total), cores: cores };
 }
 
+// CORES lines: "cpu<N> <core key>" -> array indexed by cpu number (sparse when a
+// CPU is offline). The key is unique per physical core (package * 100000 + core).
 function parseCoreIds(text) {
-    var pairs = [];
+    var ids = [];
     text.split("\n").forEach(function (line) {
         var mm = line.match(/^cpu(\d+)\s+(\d+)/);
-        if (mm) pairs.push([parseInt(mm[1], 10), parseInt(mm[2], 10)]);
+        if (mm) ids[parseInt(mm[1], 10)] = parseInt(mm[2], 10);
     });
-    pairs.sort(function (a, b) { return a[0] - b[0]; });
-    return pairs.map(function (p) { return p[1]; });
+    return ids;
 }
 
 function physicalCoreLoads(logicalLoads, coreIds) {
     var groups = {};
     for (var i = 0; i < logicalLoads.length; i++) {
+        if (logicalLoads[i] === undefined) continue;          // offline CPU
         var cid = (coreIds && coreIds[i] !== undefined) ? coreIds[i] : i;
         if (!groups[cid]) groups[cid] = [];
         groups[cid].push(logicalLoads[i]);
@@ -85,18 +90,22 @@ function physicalCoreLoads(logicalLoads, coreIds) {
         });
 }
 
-function parseNetDev(text) {
+// `only`: optional list of interface names to count (the physical NICs). Without
+// it every non-loopback interface is summed — which double-counts traffic that
+// also crosses a bridge, VPN or container interface.
+function parseNetDev(text, only) {
     var rx = 0, tx = 0;
+    var filter = (only && only.length > 0) ? only : null;
     text.split("\n").forEach(function (line) {
-        var mm = line.match(/^\s*([\w@.-]+):\s+(.+)/);
+        var mm = line.match(/^\s*([^\s:]+):\s*(.+)/);
         if (!mm || mm[1] === "lo") return;
+        if (filter && filter.indexOf(mm[1]) < 0) return;
         var nums = mm[2].trim().split(/\s+/);
         rx += parseInt(nums[0], 10) || 0;    // rx bytes
         tx += parseInt(nums[8], 10) || 0;    // tx bytes
     });
     return { rxBytes: rx, txBytes: tx };
 }
-
 function rateMBps(prevBytes, curBytes, dtSec) {
     if (dtSec <= 0) return 0;
     var d = curBytes - prevBytes;
@@ -123,7 +132,8 @@ function parseDiskstats(text, dev) {
 function deviceBase(source) {
     var name = source.replace(/^\/dev\//, "");
     if (/^(nvme\d+n\d+|mmcblk\d+)p\d+$/.test(name)) return name.replace(/p\d+$/, "");
-    return name.replace(/\d+$/, "");
+    if (/^(sd|vd|hd|xvd)[a-z]+\d+$/.test(name)) return name.replace(/\d+$/, "");
+    return name;   // dm-0, md0, nvme0n1, … are already whole devices
 }
 
 function parseDfLine(line) {
@@ -158,7 +168,12 @@ function parseSmart(text) {
     try {
         var o = JSON.parse((text || "").trim());
         if (!o || o.valid !== true) return { valid: false };
-        return { valid: true, healthPct: o.healthPct, powerOnHours: o.powerOnHours, tbwTB: o.tbwTB };
+        // a drive may not report every field (e.g. no wear level on some SATA
+        // drives): missing ones are null and hidden, never shown as 0
+        function n(v) { return (typeof v === "number" && isFinite(v)) ? v : null; }
+        var r = { valid: true, healthPct: n(o.healthPct), powerOnHours: n(o.powerOnHours), tbwTB: n(o.tbwTB) };
+        if (r.healthPct === null && r.powerOnHours === null && r.tbwTB === null) return { valid: false };
+        return r;
     } catch (e) { return { valid: false }; }
 }
 
@@ -200,9 +215,10 @@ function parseProbe(stdout) {
     if (!(dt > 0)) dt = 0.5;
 
     var cpu = cpuPct(parseCpuStat(s.STAT1), parseCpuStat(s.STAT2));
-    var phys = physicalCoreLoads(cpu.cores, parseCoreIds(s.CORES || ""));
+    var physCores = physicalCoreLoads(cpu.cores, parseCoreIds(s.CORES || ""));
     var mem = memStats(parseMeminfo(s.MEM));
-    var n1 = parseNetDev(s.NET1 || ""), n2 = parseNetDev(s.NET2 || "");
+    var phys = (s.NETPHYS || "").split(/\s+/).filter(function (x) { return x.length > 0; });
+    var n1 = parseNetDev(s.NET1 || "", phys), n2 = parseNetDev(s.NET2 || "", phys);
     var df = parseDfLine(s.DF || "");
     // whole disk backing "/": resolved by the probe (lsblk, handles LUKS/LVM/btrfs),
     // falling back to stripping the partition suffix from the df source.
@@ -245,8 +261,8 @@ function parseProbe(stdout) {
     return {
         valid: true,
         cpuPct: cpu.total,
-        coreLoads: phys,
-        coreLoadsLogical: cpu.cores,
+        coreLoads: physCores,
+        coreLoadsLogical: cpu.cores.filter(function (x) { return x !== undefined; }),
         ramPct: mem.pct, ramUsedGB: mem.usedGB, ramTotalGB: mem.totalGB,
         swapPct: mem.swapPct, swapUsedGB: mem.swapUsedGB, swapTotalGB: mem.swapTotalGB,
         diskPct: df.sizeBytes > 0 ? (df.usedBytes / df.sizeBytes) * 100 : 0,
@@ -260,9 +276,9 @@ function parseProbe(stdout) {
         diskTempC: diskT,
         gpuTempC: g0 ? g0.tempC : temps.gpuTempC,
         smartValid: smart.valid === true,
-        smartHealthPct: smart.healthPct,
-        smartPowerOnHours: smart.powerOnHours,
-        smartTbwTB: smart.tbwTB,
+        smartHealthPct: smart.valid ? smart.healthPct : null,
+        smartPowerOnHours: smart.valid ? smart.powerOnHours : null,
+        smartTbwTB: smart.valid ? smart.tbwTB : null,
         // scalar gpu* fields describe the first GPU (panel view, single-GPU machines)
         gpuValid: g0 !== null,
         gpuBusy: g0 ? g0.busy : 0,
@@ -401,9 +417,31 @@ function parseTempSensors(text) {
     return out;
 }
 
+// Output of `healthpanel-update status|check|apply`: KEY=value lines.
+//   STATE    current | available | unsupported | error
+//   LOCAL / REMOTE  short commit ids, COUNT new commits, SUBJECT of the newest
+//   RESULT   (apply only) updated | failed, NEEDS_ROOT=1 when root-side files changed
+function parseUpdate(text) {
+    var kv = {};
+    (text || "").split("\n").forEach(function (line) {
+        var m = line.match(/^([A-Z_]+)=(.*)$/);
+        if (m) kv[m[1]] = m[2].trim();
+    });
+    var states = ["current", "available", "unsupported", "error"];
+    return {
+        state: states.indexOf(kv.STATE) >= 0 ? kv.STATE : "unknown",
+        local: kv.LOCAL || "", remote: kv.REMOTE || "",
+        count: parseInt(kv.COUNT, 10) || 0,
+        subject: kv.SUBJECT || "",
+        result: kv.RESULT || "",
+        needsRoot: kv.NEEDS_ROOT === "1",
+        message: kv.MESSAGE || ""
+    };
+}
+
 // ---- UMD export (Node only; ignored by QML) ----
 if (typeof module !== "undefined" && module.exports) {
     module.exports = { parseMeminfo, memStats, parseCpuStat, cpuPct, parseCoreIds,
         physicalCoreLoads, parseNetDev, rateMBps, sectorsRateMBps, parseDiskstats,
-        deviceBase, parseDfLine, parseProfile, parseTemps, parseSmart, parseGpu, parseRaplPower, parsePowerSection, classifyGpuPower, parseFans, parseNvidia, parseDiskTemps, parseVolts, parseTempSensors, parseProbe };
+        deviceBase, parseDfLine, parseProfile, parseTemps, parseSmart, parseGpu, parseRaplPower, parsePowerSection, classifyGpuPower, parseFans, parseNvidia, parseDiskTemps, parseVolts, parseTempSensors, parseUpdate, parseProbe };
 }

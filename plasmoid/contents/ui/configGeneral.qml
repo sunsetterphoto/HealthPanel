@@ -12,6 +12,8 @@ ColumnLayout {
     property int   cfg_refreshSecondsDefault: 2
     property string cfg_language: "system"
     property string cfg_languageDefault: "system"
+    property alias cfg_checkUpdates: updatesCheck.checked
+    property bool  cfg_checkUpdatesDefault: true
 
     // this tab owns the order/visibility of the three main columns
     property string cfg_columnOrder: ""
@@ -51,6 +53,12 @@ ColumnLayout {
             ]
             onActivated: page.cfg_language = currentValue
             Component.onCompleted: currentIndex = indexOfValue(page.cfg_language)
+        }
+
+        QQC2.CheckBox {
+            id: updatesCheck
+            Kirigami.FormData.label: page.tr("Updates:")
+            text: page.tr("Check for new versions and offer to update")
         }
     }
 

@@ -1,6 +1,7 @@
 // BatteryData.qml — pure data + formatting helpers.
 // main.qml feeds it the raw uevent text via applyRawOutput().
 import QtQuick
+import "batparse.js" as Bat
 
 QtObject {
     id: data
@@ -40,75 +41,30 @@ QtObject {
     property int cycleCount: 0
     property real healthPct: 0
 
-    // Lenovo
+    // vendor charge thresholds (ThinkPad, and any driver with charge_control_*)
     property bool hasChargeThreshold: false
     property int chargeStart: 0
     property int chargeEnd: 0
     property string chargeBehaviour: ""
 
-    // ---- internal helpers ----
-    function _toFloat(v) { var n = parseFloat(v); return isNaN(n) ? 0 : n }
-    function _toInt(v)   { var n = parseInt(v, 10); return isNaN(n) ? 0 : n }
-    function _selectedToken(s) {
-        if (!s) return ""
-        var m = s.match(/\[([^\]]+)\]/)
-        return m ? m[1] : s.trim()
-    }
-    function _parseKV(text) {
-        var out = {}
-        var lines = text.split("\n")
-        for (var i = 0; i < lines.length; i++) {
-            var line = lines[i]
-            var eq = line.indexOf("=")
-            if (eq <= 0) continue
-            out[line.substring(0, eq)] = line.substring(eq + 1)
-        }
-        return out
-    }
-
-    // ---- public API: feed raw text (uevent + lenovo extras) ----
+    // ---- public API: feed raw text (uevent + vendor extras); parsing lives in
+    // batparse.js (unit-tested) ----
     function applyRawOutput(text) {
         probed = true
-        if (!text) {
-            present = false
-            error = "no data"
-            return
-        }
-        var p = _parseKV(text)
-
-        name               = p["POWER_SUPPLY_NAME"] || ""
-        manufacturer       = p["POWER_SUPPLY_MANUFACTURER"] || ""
-        model              = p["POWER_SUPPLY_MODEL_NAME"] || ""
-        serial             = (p["POWER_SUPPLY_SERIAL_NUMBER"] || "").trim()
-        technology         = p["POWER_SUPPLY_TECHNOLOGY"] || ""
-        status             = p["POWER_SUPPLY_STATUS"] || ""
-        capacityPct        = _toInt(p["POWER_SUPPLY_CAPACITY"])
-        capacityLevel      = p["POWER_SUPPLY_CAPACITY_LEVEL"] || ""
-
-        energyFullDesignWh = _toFloat(p["POWER_SUPPLY_ENERGY_FULL_DESIGN"]) / 1e6
-        energyFullWh       = _toFloat(p["POWER_SUPPLY_ENERGY_FULL"]) / 1e6
-        energyNowWh        = _toFloat(p["POWER_SUPPLY_ENERGY_NOW"]) / 1e6
-
-        voltageNowV        = _toFloat(p["POWER_SUPPLY_VOLTAGE_NOW"]) / 1e6
-        voltageMinDesignV  = _toFloat(p["POWER_SUPPLY_VOLTAGE_MIN_DESIGN"]) / 1e6
-        powerNowW          = _toFloat(p["POWER_SUPPLY_POWER_NOW"]) / 1e6
-        hasPowerNow = (p["POWER_SUPPLY_POWER_NOW"] !== undefined && p["POWER_SUPPLY_POWER_NOW"] !== "")
-
-        cycleCount         = _toInt(p["POWER_SUPPLY_CYCLE_COUNT"])
-        healthPct = energyFullDesignWh > 0
-            ? (energyFullWh / energyFullDesignWh) * 100
-            : 0
-
-        // Lenovo (printed by the shell command in main.qml as BATTINFO_* lines)
-        var cs = p["HP_CHARGE_START"]
-        var ce = p["HP_CHARGE_END"]
-        var cb = p["HP_CHARGE_BEHAVIOUR"]
-        hasChargeThreshold = false
-        if (cs && cs.length > 0) { chargeStart = _toInt(cs); hasChargeThreshold = true }
-        if (ce && ce.length > 0) { chargeEnd   = _toInt(ce); hasChargeThreshold = true }
-        chargeBehaviour = cb ? _selectedToken(cb) : ""
-
-        present = (p["POWER_SUPPLY_PRESENT"] || "0") === "1"
+        var r = Bat.parseBattery(text || "")
+        name = r.name; manufacturer = r.manufacturer; model = r.model
+        serial = r.serial; technology = r.technology
+        status = r.status; capacityPct = r.capacityPct; capacityLevel = r.capacityLevel
+        energyFullDesignWh = r.energyFullDesignWh
+        energyFullWh = r.energyFullWh
+        energyNowWh = r.energyNowWh
+        voltageNowV = r.voltageNowV; voltageMinDesignV = r.voltageMinDesignV
+        powerNowW = r.powerNowW; hasPowerNow = r.hasPowerNow
+        cycleCount = r.cycleCount; healthPct = r.healthPct
+        hasChargeThreshold = r.hasChargeThreshold
+        chargeStart = r.chargeStart; chargeEnd = r.chargeEnd
+        chargeBehaviour = r.chargeBehaviour
+        present = r.present
         error = present ? "" : "battery not present"
     }
 
@@ -154,9 +110,5 @@ QtObject {
         var total = Math.round(h * 60)
         var hh = Math.floor(total / 60), mm = total % 60
         return hh + "h " + (mm < 10 ? "0" : "") + mm + "m"
-    }
-    // label for the remaining estimate ("verbleibend" / "bis voll")
-    function timeLabel() {
-        return status === "Charging" ? "bis voll" : "verbleibend"
     }
 }

@@ -21,10 +21,12 @@ Item {
     property string layoutJson: ""
     readonly property var _order: LayoutMeta.parseOrder(card.layoutJson, LayoutMeta.batteryBlocks())
 
-    Layout.preferredWidth:  Kirigami.Units.gridUnit * 18
-    Layout.preferredHeight: contentLoader.active
-        ? contentLoader.implicitHeight + Kirigami.Units.gridUnit * 1.5
-        : Kirigami.Units.gridUnit * 8
+    // implicit size = the content's, so the responsive grid in MonitorView can
+    // wrap and scroll this card like the other columns
+    implicitWidth:  Kirigami.Units.gridUnit * 18
+    implicitHeight: (contentLoader.item ? contentLoader.item.implicitHeight : Kirigami.Units.gridUnit * 6.5)
+        + Kirigami.Units.gridUnit * 1.5
+    function _fade(a) { var c = Kirigami.Theme.textColor; return Qt.rgba(c.r, c.g, c.b, a) }
 
     readonly property bool _ready: card.battery !== null && card.battery !== undefined
     readonly property bool _ok: _ready && card.battery.present === true
@@ -83,7 +85,7 @@ Item {
             rowSpacing: 2
             PC3.Label { text: card.tr("Status"); opacity: 0.8 }
             PC3.Label {
-                text: card.battery.statusGlyph() + " " + (card.battery.status || "—")
+                text: card.battery.statusGlyph() + " " + (card.battery.status ? card.tr(card.battery.status) : "—")
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight
             }
         }
@@ -150,11 +152,6 @@ Item {
             Layout.fillWidth: true
             visible: card.battery.hasChargeThreshold
             spacing: Kirigami.Units.smallSpacing
-            PC3.Label {
-                text: "Lenovo"
-                opacity: 0.6
-                font.pixelSize: Kirigami.Theme.smallFont.pixelSize
-            }
             GridLayout {
                 Layout.fillWidth: true
                 columns: 2
@@ -207,15 +204,18 @@ Item {
                     Layout.fillWidth: true
                     spacing: 0
                     PC3.Label {
-                        text: card.battery.manufacturer + " " + card.battery.model
+                        text: (card.battery.manufacturer + " " + card.battery.model).trim() || card.tr("Battery")
                         font.bold: true
                         elide: Text.ElideRight
                         Layout.fillWidth: true
                     }
                     PC3.Label {
-                        text: (card.battery.name || card.tr("Battery")) + " · " + card.battery.technology
+                        text: (card.battery.name || card.tr("Battery"))
+                            + (card.battery.technology ? " · " + card.battery.technology : "")
                         opacity: 0.7
                         font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                        elide: Text.ElideRight
+                        Layout.fillWidth: true
                     }
                 }
             }
@@ -243,7 +243,7 @@ Item {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 6
                     radius: 3
-                    color: Qt.rgba(1, 1, 1, 0.08)
+                    color: card._fade(0.12)
                     Rectangle {
                         width: parent.width * Math.max(0, Math.min(1, card.battery.capacityPct / 100))
                         height: parent.height
@@ -276,7 +276,7 @@ Item {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 6
                     radius: 3
-                    color: Qt.rgba(1, 1, 1, 0.08)
+                    color: card._fade(0.12)
                     Rectangle {
                         width: parent.width * Math.max(0, Math.min(1, card.battery.healthPct / 100))
                         height: parent.height

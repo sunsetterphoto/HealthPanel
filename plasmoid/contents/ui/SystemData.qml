@@ -84,8 +84,11 @@ QtObject {
     // SSD SMART (from the root-timer cache)
     property bool smartValid: false
     property real smartHealthPct: 0
+    property bool hasSmartHealth: false     // a drive may not report every field
     property int  smartPowerOnHours: 0
+    property bool hasSmartHours: false
     property real smartTbwTB: 0
+    property bool hasSmartTbw: false
 
     // history ring-buffers for sparklines (newest at end)
     readonly property int histLen: 40
@@ -150,11 +153,12 @@ QtObject {
         hasDiskTempSensor1 = (r.diskTempSensor1C !== null && r.diskTempSensor1C !== undefined);
         diskTempSensor1C = hasDiskTempSensor1 ? r.diskTempSensor1C : 0;
         smartValid = r.smartValid === true;
-        if (smartValid) {
-            smartHealthPct = r.smartHealthPct;
-            smartPowerOnHours = r.smartPowerOnHours;
-            smartTbwTB = r.smartTbwTB;
-        }
+        hasSmartHealth = smartValid && r.smartHealthPct !== null;
+        hasSmartHours  = smartValid && r.smartPowerOnHours !== null;
+        hasSmartTbw    = smartValid && r.smartTbwTB !== null;
+        smartHealthPct    = hasSmartHealth ? r.smartHealthPct : 0;
+        smartPowerOnHours = hasSmartHours ? r.smartPowerOnHours : 0;
+        smartTbwTB        = hasSmartTbw ? r.smartTbwTB : 0;
         cpuHist    = _push(cpuHist, cpuPct);
         ramHist    = _push(ramHist, ramPct);
         diskIoHist = _push(diskIoHist, diskReadMBps + diskWriteMBps);
@@ -175,12 +179,6 @@ QtObject {
     function fmtRpm(v)  { return Math.round(v) + " rpm"; }
     function fmtVolt(v) { return v.toFixed(3) + " V"; }
     function fmtTbw(t)   { return (t >= 100 ? t.toFixed(0) : t.toFixed(1)) + " TBW"; }
-    function fmtHours(h) { return String(h).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " h"; }
+    function fmtHours(h) { return Number(h).toLocaleString(Qt.locale(), "f", 0) + " h"; }
     function clampW(v)   { return Math.max(0, Math.min(100, v)); }   // bar widths
-    function profileLabel(p) {
-        if (p === "performance") return "Leistung";
-        if (p === "balanced")    return "Ausgewogen";
-        if (p === "power-saver") return "Sparen";
-        return "—";
-    }
 }
