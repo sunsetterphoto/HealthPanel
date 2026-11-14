@@ -205,7 +205,12 @@ PlasmoidItem {
         }
     }
 
-    // long-running systemd-inhibit while the toggle is on
+    // Long-running kde-inhibit while the toggle is on. It blocks only the
+    // *automatic* idle actions (sleep, screen dim/off, lock) via PowerDevil's
+    // policy inhibition, exactly like the battery applet's "block sleep".
+    // Explicit requests — closing the lid, the power button, Sleep in the
+    // menu — still suspend. (A systemd-inhibit "sleep" block lock made logind
+    // refuse those too: with the lid closed the laptop silently stayed awake.)
     P5S.DataSource {
         id: inhibitor
         engine: "executable"
@@ -235,8 +240,10 @@ PlasmoidItem {
     }
     function setInhibit(on) {
         if (on) {
-            inhibitor.connectSource("systemd-inhibit --what=sleep:idle " +
-                "--who=HealthPanel --why='Vom Nutzer aktiviert' sleep infinity")
+            // setpriv --pdeathsig: the placeholder child dies with kde-inhibit
+            // when disconnectSource() kills it (no orphaned sleep processes)
+            inhibitor.connectSource("kde-inhibit --power --screenSaver " +
+                "setpriv --pdeathsig TERM sleep infinity")
             control.inhibited = true
         } else {
             var srcs = inhibitor.connectedSources.slice()

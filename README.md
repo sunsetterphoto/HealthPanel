@@ -101,7 +101,9 @@ Sections individually toggleable:
 Each row is toggleable and only appears when its backend is actually available —
 all **root-free**, via the standard KDE / PipeWire D-Bus services:
 
-- **Prevent standby & lock** while you need the machine awake (`systemd-inhibit`)
+- **Prevent standby & lock** while you need the machine awake (`kde-inhibit`): blocks
+  automatic sleep, screen dimming and locking while idle — closing the lid, the power
+  button or *Sleep* in the menu still suspend, like the battery applet's own switch
 - **Screen brightness** slider
 - **Keyboard backlight** slider
 - **Volume + mute**
@@ -300,7 +302,7 @@ well expose them:**
   representation. `Compact.qml` draws the configurable panel view.
 - Backends are root-free D-Bus / CLI calls: power profile via `power-profiles-daemon`/
   `tuned-ppd`, brightness via `org.kde.ScreenBrightness` and `UPower`, volume via
-  `wpctl`, wake-lock via `systemd-inhibit`.
+  `wpctl`, wake-lock via `kde-inhibit` (idle policy only, never a logind sleep block).
 - One probe per refresh takes two `/proc` snapshots 0.5 s apart in a single
   `sh -c` call, so rates are self-contained (no cross-tick state).
 - In-widget translations live in `plasmoid/contents/ui/i18n.js` (English source
